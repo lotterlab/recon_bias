@@ -6,7 +6,7 @@ import torch
 import random
 
 # Define the directories
-parent_directory = '/Users/matteowohlrapp/Documents/Uni/DFCI_L/dfci/dataset_exploration/USCF-PDGM/UCSF-PDGM-v3'
+parent_directory = '/Users/matteowohlrapp/Documents/Uni/DFCI_L/data/UCSF-PDGM'
 metadata_file = os.path.join(parent_directory, 'UCSF-PDGM-metadata.csv')
 processed_directory = os.path.join(parent_directory, 'processed')
 
@@ -125,7 +125,7 @@ for patient_folder in patient_folders:
 
 # Save processed data as CSV
 processed_df = pd.DataFrame(processed_data)
-output_csv_path = os.path.join(processed_directory, 'processed_data.csv')
+output_csv_path = os.path.join(processed_directory, 'metadata.csv')
 processed_df.to_csv(output_csv_path, index=False)
 
 print(f"Processing complete. Saved processed slices and metadata to {output_csv_path}")

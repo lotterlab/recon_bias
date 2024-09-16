@@ -2,3 +2,5 @@ dataset_exploration/BraTS
 dataset_exploration/Duke Breast MRI 
 dataset_exploration/ReMIND
 dataset_exploration/USCF-PDGM
+runs
+**/__pycache__/

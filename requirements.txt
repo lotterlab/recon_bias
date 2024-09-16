@@ -1,0 +1,9 @@
+matplotlib 
+numpy
+tensorboard
+scikit-image
+polars
+seaborn
+scikit_learn
+torch
+tqdm
