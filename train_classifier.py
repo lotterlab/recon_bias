@@ -10,7 +10,7 @@ from src.model.classification.NLLSurvLoss import NLLSurvLoss
 
 from src.trainer.trainer import train_model
 
-def classification():
+def classify():
     print("Starting classification ...")
 
     # Device configuration
@@ -35,8 +35,8 @@ def classification():
     ])
 
     # Datasets and DataLoaders
-    train_dataset = ClassificationDataset(data_root=root_dir, transform=train_transform, number_of_samples= 7, split='train')
-    val_dataset = ClassificationDataset(data_root=root_dir, transform=val_transform, number_of_samples= 1, split='val')
+    train_dataset = ClassificationDataset(data_root=root_dir, transform=train_transform, split='train')
+    val_dataset = ClassificationDataset(data_root=root_dir, transform=val_transform, split='val')
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -61,4 +61,4 @@ def classification():
     torch.save(trained_model.state_dict(), '../output/os_classification_model.pth')
 
 if __name__ == "__main__":
-    classification()
+    classify()

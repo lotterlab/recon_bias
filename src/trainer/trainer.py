@@ -33,7 +33,6 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         train_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} [Training]")
         for inputs, labels in train_bar:
             inputs = inputs.to(device)
-            #labels = {key: value.to(device) for key, value in labels.items()}
             labels = labels.to(device)
 
             optimizer.zero_grad()
@@ -41,7 +40,6 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             _, preds = torch.max(outputs, 1)
-            print(preds)
 
             loss.backward()
             optimizer.step()

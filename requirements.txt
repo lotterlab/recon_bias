@@ -6,4 +6,6 @@ polars
 seaborn
 scikit_learn
 torch
+nibabel
 tqdm
+torchvision
