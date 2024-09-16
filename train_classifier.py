@@ -56,9 +56,9 @@ def classify():
     trained_model = train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, log_dir)
 
     # save the trained model
-    if not os.path.exists('../output'):
-        os.makedirs('../output')
-    torch.save(trained_model.state_dict(), '../output/os_classification_model.pth')
+    if not os.path.exists('./output'):
+        os.makedirs('./output')
+    torch.save(trained_model.state_dict(), './output/os_classification_model.pth')
 
 if __name__ == "__main__":
     classify()
