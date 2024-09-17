@@ -61,6 +61,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         writer.add_scalar('Loss/Train', epoch_loss, epoch)
         writer.add_scalar('Accuracy/Train', epoch_acc, epoch)
 
+        torch.save(model.state_dict(), f"./output/os_classification_model_{epoch}.pth")
+
         # Validation phase
         model.eval()
         val_running_loss = 0.0
