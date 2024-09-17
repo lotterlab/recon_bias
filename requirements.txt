@@ -9,3 +9,6 @@ torch
 nibabel
 tqdm
 torchvision
+black
+pycln
+isort

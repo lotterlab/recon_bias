@@ -2,7 +2,10 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs, device, log_dir):
+
+def train_model(
+    model, train_loader, val_loader, optimizer, num_epochs, device, log_dir
+):
     """
     Trains a classification model and logs progress to TensorBoard.
 
@@ -38,28 +41,31 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             optimizer.zero_grad()
 
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            _, preds = torch.max(outputs, 1)
+            loss = model.criterion(outputs, labels)
 
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == (labels[:, 5] // 250).long())
+            preds = model.classification_criteria(outputs)
+            transformed_labels = model.target_transformation(labels)
+            running_corrects += torch.sum(preds == transformed_labels)
             total += labels.size(0)
 
             # Update progress bar
-            train_bar.set_postfix({
-                'Loss': running_loss / total,
-                'Acc': running_corrects.double().item() / total
-            })
+            train_bar.set_postfix(
+                {
+                    "Loss": running_loss / total,
+                    "Acc": running_corrects.double().item() / total,
+                }
+            )
 
         epoch_loss = running_loss / total
         epoch_acc = running_corrects.double() / total
 
         # Log training metrics
-        writer.add_scalar('Loss/Train', epoch_loss, epoch)
-        writer.add_scalar('Accuracy/Train', epoch_acc, epoch)
+        writer.add_scalar("Loss/Train", epoch_loss, epoch)
+        writer.add_scalar("Accuracy/Train", epoch_acc, epoch)
 
         torch.save(model.state_dict(), f"./output/os_classification_model_{epoch}.pth")
 
@@ -76,25 +82,28 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
                 labels = labels.to(device)
 
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
-                _, preds = torch.max(outputs, 1)
+                loss = model.criterion(outputs, labels)
 
                 val_running_loss += loss.item() * inputs.size(0)
-                val_running_corrects += torch.sum(preds == (labels[:, 5] // 250).long())
+                preds = model.classification_criteria(outputs)
+                transformed_labels = model.target_transformation(labels)
+                val_running_corrects += torch.sum(preds == transformed_labels)
                 val_total += labels.size(0)
 
                 # Update progress bar
-                val_bar.set_postfix({
-                    'Val Loss': val_running_loss / val_total,
-                    'Val Acc': val_running_corrects.double().item() / val_total
-                })
+                val_bar.set_postfix(
+                    {
+                        "Val Loss": val_running_loss / val_total,
+                        "Val Acc": val_running_corrects.double().item() / val_total,
+                    }
+                )
 
         val_epoch_loss = val_running_loss / val_total
         val_epoch_acc = val_running_corrects.double() / val_total
 
         # Log validation metrics
-        writer.add_scalar('Loss/Validation', val_epoch_loss, epoch)
-        writer.add_scalar('Accuracy/Validation', val_epoch_acc, epoch)
+        writer.add_scalar("Loss/Validation", val_epoch_loss, epoch)
+        writer.add_scalar("Accuracy/Validation", val_epoch_acc, epoch)
 
     writer.close()
     return model

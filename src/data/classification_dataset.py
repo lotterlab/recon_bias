@@ -1,13 +1,14 @@
 import os
 import pathlib
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 import numpy as np
 import polars as pl
 import torch
 from torch.utils.data import Dataset
 
-from src.utils.labels_util import sex_map, diagnosis_map
+from src.utils.labels_util import diagnosis_map, sex_map
+
 
 class ClassificationDataset(Dataset):
     """Classification dataset to load MRI images"""
@@ -64,10 +65,13 @@ class ClassificationDataset(Dataset):
         row = self.metadata.row(idx, named=True)
         # Load np array from file
         slice = np.load(row["file_path"])
-        sex = torch.tensor(sex_map[row["Sex"]] , dtype=torch.int64)
+        sex = torch.tensor(sex_map[row["Sex"]], dtype=torch.int64)
         age = torch.tensor(row["Age at MRI"], dtype=torch.float64)
         cns = torch.tensor(row["WHO CNS Grade"], dtype=torch.int64)
-        diagnosis = torch.tensor(diagnosis_map[row["Final pathologic diagnosis (WHO 2021)"]], dtype=torch.int64)
+        diagnosis = torch.tensor(
+            diagnosis_map[row["Final pathologic diagnosis (WHO 2021)"]],
+            dtype=torch.int64,
+        )
         censor = torch.tensor(-1 * (row["1-dead 0-alive"] - 1), dtype=torch.int64)
         os = torch.tensor(row["OS"], dtype=torch.float64)
 
