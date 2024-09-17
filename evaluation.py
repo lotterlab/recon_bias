@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.model.classification.classification_model import ResNetClassifier
+from code.dfci.src.model.classification.classification_network import ResNetClassifier
 
 # Define age bins and labels
 AGE_BINS = [0, 3, 18, 42, 67, 96]
