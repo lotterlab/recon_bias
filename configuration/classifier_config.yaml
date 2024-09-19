@@ -1,18 +1,20 @@
 output_dir: './output'
-output_name: 'ttype'
+output_name: 'tgrade'
 save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
 batch_size: 16
+early_stopping_patience: 3
 
 data_root: '../../data/UCSF-PDGM/processed/'
 num_train_samples: 100
 num_val_samples: 10
 log_dir: './runs'
 
-classifier_type: 'TTypeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
+classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
+
 #bin_size: 250
 #eps: 1e-8

@@ -45,6 +45,7 @@ def main():
     data_root = config['data_root']
     seed = config.get('seed', 31415)
     save_interval = config.get('save_interval', 1)
+    early_stopping_patience = config.get('early_stopping_patience', None)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -53,6 +54,11 @@ def main():
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
+
+    # Save the configuration back into the output directory for tracking
+    config_save_path = os.path.join(output_dir, 'config.yaml')
+    with open(config_save_path, 'w') as config_file:
+        yaml.dump(config, config_file, default_flow_style=False)
 
     transform = transforms.Compose(
         [
@@ -86,37 +92,32 @@ def main():
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Classifier
+    if classifier_type == 'TTypeBCEClassifier':
+        model = TTypeBCEClassifier()
+    elif classifier_type == 'TGradeBCEClassifier':
+        model = TGradeBCEClassifier()
+    elif classifier_type == 'NLLSurvClassifier':
+        bin_size = config.get('bin_size', 1000)
+        eps = config.get('eps', 1e-8)
+        model = NLLSurvClassifier(bin_size=bin_size, eps=eps)
+    else:
+        raise ValueError(f"Unknown classifier type: {classifier_type}")
+
+    model = model.to(device)
+
     # Model
     if network_type == 'ResNet18':
-        network = ResNetClassifierNetwork(num_classes=1)
+        network = ResNetClassifierNetwork(num_classes=model.target_size)
     elif network_type == 'ResNet50':
-        network = ResNetClassifierNetwork(num_classes=1, resnet_version='resnet50')
+        network = ResNetClassifierNetwork(num_classes=model.target_size, resnet_version='resnet50')
     else:
         raise ValueError(f"Unknown network type: {network_type}")
 
     network = network.to(device)
 
-    # Classifier
-    if classifier_type == 'TTypeBCEClassifier':
-        model = TTypeBCEClassifier(network=network)
-    elif classifier_type == 'TGradeBCEClassifier':
-        model = TGradeBCEClassifier(network=network)
-    elif classifier_type == 'NLLSurvClassifier':
-        bin_size = config.get('bin_size', 1000)
-        eps = config.get('eps', 1e-8)
-        # Adjust network output size for NLLSurvClassifier
-        num_classes = int(max(train_dataset.metadata['OS']) // bin_size) + 1
-        if network_type == 'ResNet18':
-            network = ResNetClassifierNetwork(num_classes=num_classes)
-        elif network_type == 'ResNet50':
-            network = ResNetClassifierNetwork(num_classes=num_classes, resnet_version='resnet50')
-        else:
-            raise ValueError(f"Unknown network type: {network_type}")
-        model = NLLSurvClassifier(network=network, bin_size=bin_size, eps=eps)
-    else:
-        raise ValueError(f"Unknown classifier type: {classifier_type}")
-
-    model = model.to(device)
+    # Add network to classifier
+    model.set_network(network)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -133,6 +134,7 @@ def main():
         output_dir=output_dir,
         output_name=output_name,
         save_interval=save_interval,
+        early_stopping_patience=early_stopping_patience,
     )
 
     # Start training

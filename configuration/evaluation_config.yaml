@@ -1,0 +1,11 @@
+data_root: "../../data/UCSF-PDGM/processed"
+output_dir: "./output"
+output_name: "evaluation"
+#reconstruction_model: ""
+classifiers:
+  - type: "TTypeBCEClassifier"
+    network: "ResNet18"
+    model_path: "./output/ttype_20240918_111005/checkpoints/ttype_20240918_111005_epoch_2_best.pth"
+  - type: "TGradeBCEClassifier"
+    network: "ResNet18"
+    model_path: "./output/tgrade_20240918_121944/checkpoints/tgrade_20240918_121944_epoch_2_best.pth"

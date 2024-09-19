@@ -13,12 +13,12 @@ class Classifier(ABC, nn.Module):
     Classifier base class.
     """
 
-    def __init__(self, network):
+    def __init__(self):
         super().__init__()
-        self.network = network
+        self.network = None
 
-    def load_state_dict(self, state_dict):
-        self.network.load_state_dict(state_dict)
+    def set_network(self, network):
+        self.network = network
 
     def forward(self, x):
         return self.network(x)
@@ -50,10 +50,14 @@ class Classifier(ABC, nn.Module):
     def classification_criteria(self, logits):
         pass
 
+    @abstractmethod 
+    def accumulation_function(self, results):
+        pass
+
 
 class TTypeBCEClassifier(Classifier):
-    def __init__(self, network):
-        super().__init__(network)
+    def __init__(self):
+        super().__init__()
         self.bce_loss = nn.BCEWithLogitsLoss()
 
     @property
@@ -84,6 +88,18 @@ class TTypeBCEClassifier(Classifier):
         logits = logits.squeeze()
         return torch.sigmoid(logits) > 0.5
 
+    def accumulation_function(self, results):
+        """
+        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
+        
+        Args:
+            results (pd.Series): The series of predicted or ground truth values.
+        
+        Returns:
+            float: The percentage of class 1 (diagnosis = 3).
+        """
+        return (results == 1).mean() * 100
+
 
 class TGradeBCEClassifier(Classifier):
     """
@@ -91,8 +107,8 @@ class TGradeBCEClassifier(Classifier):
 
     """
 
-    def __init__(self, network):
-        super().__init__(network)
+    def __init__(self):
+        super().__init__()
         self.bce_loss = nn.BCEWithLogitsLoss()
 
     @property
@@ -122,12 +138,24 @@ class TGradeBCEClassifier(Classifier):
     def classification_criteria(self, logits):
         logits = logits.squeeze()
         return torch.sigmoid(logits) > 0.5
+    
+    def accumulation_function(self, results):
+        """
+        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
+        
+        Args:
+            results (pd.Series): The series of predicted or ground truth values.
+        
+        Returns:
+            float: The percentage of class 1 (diagnosis = 3).
+        """
+        return (results == 1).mean() * 100
 
 
 class NLLSurvClassifier(Classifier):
 
-    def __init__(self, network, bin_size=1000, eps=1e-8):
-        super().__init__(network)
+    def __init__(self, bin_size=1000, eps=1e-8):
+        super().__init__()
         self.bin_size = bin_size
         self.eps = eps
 
@@ -177,3 +205,15 @@ class NLLSurvClassifier(Classifier):
     def classification_criteria(self, logits):
         _, preds = torch.max(logits, 1)
         return preds
+
+    def accumulation_function(self, results):
+        """
+        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
+        
+        Args:
+            results (pd.Series): The series of predicted or ground truth values.
+        
+        Returns:
+            float: The average survival bin index.
+        """
+        return results.mean()
