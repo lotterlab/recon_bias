@@ -12,3 +12,6 @@ torchvision
 black
 pycln
 isort
+plotly
+kaleido
+fastmri

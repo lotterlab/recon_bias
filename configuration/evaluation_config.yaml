@@ -1,6 +1,7 @@
 data_root: "../../data/UCSF-PDGM/processed"
 output_dir: "./output"
-output_name: "evaluation-complete"
+output_name: "test-evaluation"
+#number_of_images: 10
 #reconstruction_model: ""
 classifiers:
   - type: "TTypeBCEClassifier"

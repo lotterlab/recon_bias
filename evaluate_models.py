@@ -15,7 +15,7 @@ from src.model.classification.classification_model import (
     NLLSurvClassifier,
 )
 from src.evaluation.prediction import process_patients
-from src.evaluation.evaluation import evaluate_predictions
+from src.evaluation.evaluation import evaluate_classifiers
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
@@ -71,6 +71,7 @@ def main():
     output_dir = config["output_dir"]
     output_name = config["output_name"]
     reconstruction_model_path = config.get("reconstruction_model", None)
+    number_of_images = config.get("number_of_images", None)
 
     # Create output directory for evaluation
     output_name = f"{output_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -99,7 +100,7 @@ def main():
     metadata = load_metadata(data_root + "/metadata.csv")
     metadata = metadata[metadata["split_type"] == "test"]
 
-    results = process_patients(metadata, classifiers, reconstruction_model)
+    results = process_patients(metadata, classifiers, reconstruction_model, number_of_images)
 
     # Create DataFrame for results
     results_df = pd.DataFrame(results)
@@ -113,7 +114,7 @@ def main():
     print(f"Results saved to {output_path}")
 
     # Evaluate predictions
-    evaluate_predictions(results_df, classifiers, output_path)
+    evaluate_classifiers(results_df, classifiers, output_path)
 
 
 if __name__ == "__main__":

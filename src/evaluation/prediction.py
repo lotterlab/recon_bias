@@ -15,7 +15,7 @@ def majority_voting(predictions: List[int]) -> int:
 def process_patient_data(
     df: pd.DataFrame,
     classifiers: List[dict],
-    reconstruction_model: Optional[torch.nn.Module] = None,
+    reconstruction_model: Optional[torch.nn.Module] = None
 ) -> dict:
     """Process each patient, returning a dictionary of results."""
     patient_info = {
@@ -70,18 +70,19 @@ def process_patients(
     metadata: pd.DataFrame,
     classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None,
+    number_of_images = None,
 ) -> List[dict]:
     """Process all patients in the metadata file."""
     patient_infos = []
 
     index = 0
     for patient_id, patient_df in metadata.groupby("patient_id"):
-        if index > 5: 
-            break 
+        if number_of_images is not None:
+            if index >= number_of_images: 
+                break
         index += 1
         print(f"Processing patient {patient_id}...")
         patient_info = process_patient_data(patient_df, classifiers, reconstruction_model)
         patient_infos.append(patient_info)
 
-    print(patient_infos)
     return patient_infos

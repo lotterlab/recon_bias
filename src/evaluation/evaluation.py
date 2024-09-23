@@ -7,6 +7,8 @@ import numpy as np
 import os
 from scipy import stats
 
+
+
 # Define age bins and labels
 AGE_BINS = [0, 3, 18, 42, 67, 96]
 AGE_LABELS = ["0-2", "3-17", "18-41", "42-66", "67-96"]
@@ -201,3 +203,206 @@ def evaluate_predictions(results_df: pd.DataFrame, classifiers: List[str], outpu
 
 
 
+
+
+import pandas as pd
+from scipy.stats import ttest_ind
+import numpy as np
+
+import os
+import plotly.express as px
+
+import os
+import plotly.express as px
+
+def grouped_bar_chart(df, x, x_label, y, y_label, color, color_label, facet_col, facet_col_label, category_order, title, output_dir, output_name, facet_row=None, facet_row_label=None):
+    """Create a grouped bar chart with improved text on bars."""
+    
+    # Ensure output directory exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Define labels for the plot
+    labels = {
+        x: x_label,
+        y: y_label,
+        color: color_label,
+        facet_col: facet_col_label
+    }
+    
+    if facet_row:
+        labels[facet_row] = facet_row_label
+
+    # Create the bar chart
+    fig = px.bar(
+        df,
+        x=x,
+        y=y,
+        color=color,
+        barmode="group",
+        facet_col=facet_col,
+        facet_row=facet_row,
+        category_orders=category_order,
+        labels=labels,
+        title=title,
+        text=y  # Display the y values as text on the bars
+    )
+
+    # Ensure the numbers on the axis display correctly
+    fig.update_layout(
+        yaxis_tickformat=".3f",  # Format axis to show up to three decimal places
+        uniformtext_minsize=8,    # Minimum size for text on bars
+        uniformtext_mode='hide',  # Hide text if it gets too small
+    )
+
+    # Adjust the text position and styling on the bars
+    fig.update_traces(
+        texttemplate='%{text:.3f}',    # Format text to three decimal places
+        textposition='outside',        # Text outside bars (adjust to 'inside' if preferred)
+        textfont=dict(
+            color="black",            # Change all text to a consistent black color (adjust as needed)
+            size=12,                  # Make the text size consistent (adjust size as needed)
+        )
+    )
+
+    # Save the plot as an image
+    fig.write_image(os.path.join(output_dir, output_name))
+
+    return fig  # Optionally, return the figure if you want to visualize it in the notebook
+
+
+
+# Define helper functions for percentage difference and t-test
+
+def percent_difference(a, b):
+    """Calculate percent difference between two series."""
+    return (abs(a - b) / ((a + b) / 2)) * 100
+
+def perform_t_test(a, b):
+    """Perform t-test between two series and return the p-value."""
+    if np.allclose(a, b):
+        return 1.0
+    t_stat, p_value = ttest_ind(a, b, equal_var=False, nan_policy='omit')
+    return p_value
+
+def evaluate_classifier_predictions(df, classifier, output_dir):
+    df['age_bin'] = pd.cut(df['age'], bins=AGE_BINS, labels=AGE_LABELS, right=True)
+    df = df.copy()
+    grouped = df.groupby(['sex', 'age_bin'])
+
+    # Store results in a list to build the final dataframe
+    results = []
+
+    # Loop through each group (sex, age_bin)
+    for (sex, age_bin), group in grouped:
+        metrics = ['gt', 'pred', 'recon']
+        available_columns = {metric: f"{classifier['name']}_{metric}" for metric in metrics if f"{classifier['name']}_{metric}" in group.columns}
+
+        # Check if recon is available
+        gt_col = available_columns.get('gt')
+        pred_col = available_columns.get('pred')
+        recon_col = available_columns.get('recon', None)
+
+        # Calculate percent differences and t-tests between gt, pred, and recon
+        if gt_col and pred_col:
+            # GT vs. Pred
+            percent_gt_pred = percent_difference(group[gt_col], group[pred_col]).mean()
+            significance_gt_pred = perform_t_test(group[gt_col], group[pred_col])
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'percent', 'metric': 'gt_pred', 'value': percent_gt_pred})
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'significance', 'metric': 'gt_pred', 'value': significance_gt_pred})
+
+        if pred_col and recon_col:
+            # Pred vs. Recon
+            percent_pred_recon = percent_difference(group[pred_col], group[recon_col]).mean()
+            significance_pred_recon = perform_t_test(group[pred_col], group[recon_col])
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'percent', 'metric': 'pred_recon', 'value': percent_pred_recon})
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'significance', 'metric': 'pred_recon', 'value': significance_pred_recon})
+
+        if gt_col and recon_col:
+            # GT vs. Recon
+            percent_gt_recon = percent_difference(group[gt_col], group[recon_col]).mean()
+            significance_gt_recon = perform_t_test(group[gt_col], group[recon_col])
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'percent', 'metric': 'gt_recon', 'value': percent_gt_recon})
+            results.append({'sex': sex, 'age_bin': age_bin, 'type': 'significance', 'metric': 'gt_recon', 'value': significance_gt_recon})
+
+    # Convert results to DataFrame
+    results_df = pd.DataFrame(results)
+
+    # Save or return results as needed, output_dir handling can be done here
+    return results_df
+
+def adjust_age_bins(df, age_column, bins, labels):
+    """Adjust the age bins and labels to only include those present in the dataframe."""
+    # Get the minimum and maximum age values from the data
+    
+    adjusted_bins = bins.copy()
+    adjusted_labels = labels.copy()
+
+    min_age = df[age_column].min()
+    max_age = df[age_column].max()
+
+    while adjusted_bins[1] < min_age and len(adjusted_bins) > 1:
+        adjusted_bins.pop(0)
+        adjusted_labels.pop(0)
+
+    while adjusted_bins[-2] > max_age and len(adjusted_bins) > 1:
+        adjusted_bins.pop(-1)
+        adjusted_labels.pop(-1)
+
+    return adjusted_bins, adjusted_labels
+
+
+def aggregate_classifier_predictions(df, classifier, output_dir): 
+    # Define your age bins and labels
+    AGE_BINS = [0, 20, 40, 60, 80, 100]
+    AGE_LABELS = ['0-20', '21-40', '41-60', '61-80', '81-100']
+    
+    # Create a copy to avoid modifying original DataFrame
+    df = df.copy()
+    
+    # Categorize 'age' into bins
+    df['age_bin'] = pd.cut(df['age'], bins=AGE_BINS, labels=AGE_LABELS, right=True)
+    
+    # Group by 'sex' and 'age_bin'
+    grouped = df.groupby(['sex', 'age_bin'])
+
+    results = []
+
+    # Iterate over each group
+    for (sex, age_bin), group in grouped:
+        # Copy the group
+        group_copy = group.copy()
+        
+        # Select only 'gt', 'pred', 'recon' columns
+        relevant_columns = [col for col in group_copy.columns if col.endswith('_gt') 
+                            or col.endswith('_pred') 
+                            or col.endswith('_recon')]
+        group_relevant = group_copy[relevant_columns]
+        
+        # Get number of samples
+        n_samples = len(group_relevant)
+        
+        # Apply the custom function
+        print(f"For sex {sex} and age bin {age_bin}:")
+        print(group_relevant)
+        metrics = classifier.accumulation_function(group_relevant)
+        print(metrics)
+        
+        # Add sample size to metrics
+        metrics['n_samples'] = n_samples
+        
+        # Append metrics to results
+        for metric_name, value in metrics.items():
+            results.append({
+                'sex': sex,
+                'age_bin': age_bin,
+                'metric': metric_name,
+                'value': value,
+                'n_samples': n_samples
+            })
+
+    # Create the final DataFrame
+    metrics_df = pd.DataFrame(results)
+
+    print("\nMetrics DataFrame:")
+    print(metrics_df)

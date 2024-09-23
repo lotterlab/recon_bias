@@ -54,6 +54,10 @@ class Classifier(ABC, nn.Module):
     def accumulation_function(self, results):
         pass
 
+    #@abstractmethod
+    #def performance_metric(self, results):
+    #    pass
+
 
 class TTypeBCEClassifier(Classifier):
     def __init__(self):
