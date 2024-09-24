@@ -122,7 +122,7 @@ def process_patient_folder(parent_dir, patient_folder, metadata_file, split, out
             with open(output_file, 'a', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow([
-                    "./" + patient_folder,  # relative file path
+                    patient_folder + "/" + patient_id + suffix,  # relative file path
                     metadata_patient_id,
                     slice_id,
                     width,
@@ -170,9 +170,9 @@ def process_all_patients(source_directory, metadata_file, output_file, split='tr
 
 
 # Example usage:
-source_directory = '/homes9/matteow/data/UCSF-PDGM-test'
-metadata_file = '/homes9/matteow/data/UCSF-PDGM-test/UCSF-PDGM-metadata.csv'
-output_file = '/homes9/matteow/data/UCSF-PDGM-test/metadata.csv'
+source_directory = '/homes9/matteow/data/UCSF-PDGM'
+metadata_file = '/homes9/matteow/data/UCSF-PDGM/UCSF-PDGM-metadata.csv'
+output_file = '/homes9/matteow/data/UCSF-PDGM/metadata.csv'
 
 # Process all patients and generate the metadata file
 process_all_patients(source_directory, metadata_file, output_file, split='train')

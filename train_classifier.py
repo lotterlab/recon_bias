@@ -15,6 +15,7 @@ from src.model.classification.classification_model import (
 )
 from src.model.classification.classification_network import ResNetClassifierNetwork
 from src.trainer.trainer import Trainer
+from src.utils.transformations import min_max_slice_normalization
 
 
 def main():
@@ -46,6 +47,8 @@ def main():
     seed = config.get('seed', 31415)
     save_interval = config.get('save_interval', 1)
     early_stopping_patience = config.get('early_stopping_patience', None)
+    type = config.get('type', 'T2') 
+    pathology = config.get('pathology', ["edema","non_enhancing","enhancing"])
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -62,7 +65,7 @@ def main():
 
     transform = transforms.Compose(
         [
-            transforms.ToTensor(),
+            min_max_slice_normalization,
         ]
     )
 
@@ -73,6 +76,8 @@ def main():
         split="train",
         number_of_samples=num_train_samples,
         seed=seed,
+        type=type,
+        pathology=pathology
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -80,6 +85,8 @@ def main():
         split="val",
         number_of_samples=num_val_samples,
         seed=seed,
+        type=type,
+        pathology=pathology
     )
 
     train_loader = DataLoader(

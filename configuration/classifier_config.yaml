@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'tgrade'
+output_name: 'test'
 save_interval: 1
 
 num_epochs: 20
@@ -7,9 +7,11 @@ learning_rate: 0.0001
 batch_size: 16
 early_stopping_patience: 3
 
-data_root: '../../data/UCSF-PDGM/processed/'
-num_train_samples: 100
-num_val_samples: 10
+data_root: '../../data/UCSF-PDGM'
+type: 'T2'
+pathology: ["edema","non_enhancing","enhancing"]
+#num_train_samples: 100
+#num_val_samples: 10
 log_dir: './runs'
 
 classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'

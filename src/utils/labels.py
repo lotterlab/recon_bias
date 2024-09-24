@@ -9,15 +9,15 @@ diagnosis_map = {
 }
 
 def extract_labels_from_row(row):
-    sex = torch.tensor(sex_map[row["Sex"]], dtype=torch.int64)
-    age = torch.tensor(row["Age at MRI"], dtype=torch.float64)
-    cns = torch.tensor(row["WHO CNS Grade"], dtype=torch.int64)
+    sex = torch.tensor(sex_map[row["sex"]], dtype=torch.int64)
+    age = torch.tensor(row["age_at_mri"], dtype=torch.float64)
+    cns = torch.tensor(row["who_cns_grade"], dtype=torch.int64)
     diagnosis = torch.tensor(
-        diagnosis_map[row["Final pathologic diagnosis (WHO 2021)"]],
+        diagnosis_map[row["final_diagnosis"]],
         dtype=torch.int64,
     )
-    censor = torch.tensor(-1 * (row["1-dead 0-alive"] - 1), dtype=torch.int64)
-    os = torch.tensor(row["OS"], dtype=torch.float64)
+    censor = torch.tensor(-1 * (row["alive"] - 1), dtype=torch.int64)
+    os = torch.tensor(row["os"], dtype=torch.float64)
 
     labels = torch.stack([sex, age, cns, diagnosis, censor, os])
 
