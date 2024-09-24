@@ -9,8 +9,8 @@ early_stopping_patience: 3
 
 data_root: '../../data/UCSF-PDGM'
 type: 'T2'
-num_train_samples: 100
-num_val_samples: 10
+num_train_samples: 10
+num_val_samples: 1
 
 network_type: 'VGG'  # Options: 'VGG'
 network_path: './models/imagenet-vgg16.pth'

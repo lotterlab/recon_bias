@@ -6,22 +6,24 @@ import numpy as np
 import torch
 import datetime
 import pandas as pd
+from torch import nn
 
 from src.model.classification.resnet_classification_network import ResNetClassifierNetwork
 from src.model.classification.classification_model import (
-    Classifier,
+    ClassifierModel,
     TGradeBCEClassifier,
     TTypeBCEClassifier,
     NLLSurvClassifier,
 )
 from src.evaluation.prediction import process_patients
-from src.evaluation.evaluation import evaluate_classifiers
+from src.model.reconstruction.reconstruction_model import ReconstructionModel
+from src.model.reconstruction.vgg import VGGAutoEncoder, get_configs
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
     return pd.read_csv(metadata_path)
 
-def load_classifier(classifier_type: str, network_type: str, model_path: str, device, config) -> Classifier:
+def load_classifier(classifier_type: str, network_type: str, model_path: str, device, config) -> ClassifierModel:
     """Loads the appropriate classifier based on type and network."""
     # Classifier
     if classifier_type == 'TTypeBCEClassifier':
@@ -56,6 +58,27 @@ def load_classifier(classifier_type: str, network_type: str, model_path: str, de
     return model
 
 
+def load_reconstruction_model(model_path: str, device) -> torch.nn.Module:
+    model = ReconstructionModel() 
+    model = model.to(device)
+
+    network = VGGAutoEncoder(get_configs("vgg16"))
+    network = network.to(device)
+    network.encoder.conv1 = nn.Conv2d(
+                1, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )            
+    network.decoder.conv5 = nn.Conv2d(
+            64, 1, kernel_size=3, stride=1, padding=1, bias=False
+        ) 
+
+    model.set_network(network)
+
+    model.load_state_dict(torch.load(model_path))
+    model.network.eval()
+
+    return model
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate classification models.")
     parser.add_argument("-c", "--config", type=str, required=True, help="Path to YAML configuration file.")
@@ -78,14 +101,13 @@ def main():
     output_path = os.path.join(output_dir, output_name)
     os.makedirs(output_path, exist_ok=True)
 
+    # Device configuration
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # Load reconstruction model if provided
     reconstruction_model = None
     if reconstruction_model_path:
-        reconstruction_model = torch.load(reconstruction_model_path)
-        reconstruction_model.eval()
-
-    # Device configuration
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        reconstruction_model = load_reconstruction_model(reconstruction_model_path, device)
 
     # Initialize classifiers
     classifiers = []
@@ -98,7 +120,7 @@ def main():
 
     # Load metadata
     metadata = load_metadata(data_root + "/metadata.csv")
-    metadata = metadata[metadata["split_type"] == "test"]
+    metadata = metadata[metadata["split"] == "test"]
 
     results = process_patients(metadata, classifiers, reconstruction_model, number_of_images)
 
@@ -114,7 +136,7 @@ def main():
     print(f"Results saved to {output_path}")
 
     # Evaluate predictions
-    evaluate_classifiers(results_df, classifiers, output_path)
+    #evaluate_classifiers(results_df, classifiers, output_path)
 
 
 if __name__ == "__main__":

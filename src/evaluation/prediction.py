@@ -20,8 +20,8 @@ def process_patient_data(
     """Process each patient, returning a dictionary of results."""
     patient_info = {
         "patient_id": df["patient_id"].iloc[0],
-        "sex": df["Sex"].iloc[0],
-        "age": df["Age at MRI"].iloc[0],
+        "sex": df["sex"].iloc[0],
+        "age": df["age_at_mri"].iloc[0],
     }
 
     for classifier_info in classifiers:

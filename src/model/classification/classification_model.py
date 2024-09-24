@@ -6,9 +6,10 @@ from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
+from ..model_wrapper import ModelWrapper
 
 
-class Classifier(ABC, nn.Module):
+class ClassifierModel(ModelWrapper):
     """
     Classifier base class.
     """
@@ -30,16 +31,7 @@ class Classifier(ABC, nn.Module):
 
     @property
     @abstractmethod
-    def name(self):
-        pass
-
-    @property
-    @abstractmethod
     def key(self):
-        pass
-
-    @abstractmethod
-    def criterion(self, x, y):
         pass
 
     @abstractmethod
@@ -55,7 +47,7 @@ class Classifier(ABC, nn.Module):
         pass
 
 
-class TTypeBCEClassifier(Classifier):
+class TTypeBCEClassifier(ClassifierModel):
     def __init__(self):
         super().__init__()
         self.bce_loss = nn.BCEWithLogitsLoss()
@@ -100,8 +92,17 @@ class TTypeBCEClassifier(Classifier):
         """
         return (results == 1).mean() * 100
 
+    def performance_metric(self, x, y):
+        preds = self.classification_criteria(x)
+        transformed_labels = self.target_transformation(y)
+        return torch.sum(preds == transformed_labels) 
 
-class TGradeBCEClassifier(Classifier):
+    @property
+    def performance_metric_name(self):
+        return "Accuracy"
+
+
+class TGradeBCEClassifier(ClassifierModel):
     """
     Calculates the binary cross entropy loss for the tumor types
 
@@ -150,9 +151,18 @@ class TGradeBCEClassifier(Classifier):
             float: The percentage of class 1 (diagnosis = 3).
         """
         return (results == 1).mean() * 100
+    
+    def performance_metric(self, x, y):
+        preds = self.classification_criteria(x)
+        transformed_labels = self.target_transformation(y)
+        return torch.sum(preds == transformed_labels) 
+
+    @property
+    def performance_metric_name(self):
+        return "Accuracy"
 
 
-class NLLSurvClassifier(Classifier):
+class NLLSurvClassifier(ClassifierModel):
 
     def __init__(self, bin_size=1000, eps=1e-8):
         super().__init__()

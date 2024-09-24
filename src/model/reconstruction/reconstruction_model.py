@@ -11,7 +11,7 @@ from skimage.metrics import peak_signal_noise_ratio as psnr
 from src.utils.image_metrics import calculate_data_range
 
 
-class ReconstructionModel(nn.Module, ModelWrapper):
+class ReconstructionModel(ModelWrapper):
     """
     Classifier base class.
     """
@@ -24,8 +24,12 @@ class ReconstructionModel(nn.Module, ModelWrapper):
         return self.loss(x, y)
 
     def performance_metric(self, x, y):
-        data_range = calculate_data_range(x, y)
-        return psnr(x, y, data_range=data_range)
+        return torch.tensor(0.0)
 
+    @property
     def performance_metric_name(self):
-        return "PSNR"
+        return "n/a"
+    
+    @property
+    def name(self):
+        return "ReconstructionModel"

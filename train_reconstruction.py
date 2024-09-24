@@ -5,6 +5,7 @@ import os
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from torch import nn
 
 # Import your dataset, models, and trainer
 from src.data.reconstruction_dataset import ReconstructionDataset
@@ -105,11 +106,16 @@ def main():
     # Model
     if network_type == 'VGG':
         network = VGGAutoEncoder(get_configs("vgg16"))
+        if network_path:
+            load_dict(network_path, network)
+        network.encoder.conv1 = nn.Conv2d(
+                1, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )            
+        network.decoder.conv5 = nn.Conv2d(
+                64, 1, kernel_size=3, stride=1, padding=1, bias=False
+            )            
     else:
         raise ValueError(f"Unknown network type: {network_type}")
-    
-    if network_path:
-        load_dict(network_path, network)
 
     network = network.to(device)
 

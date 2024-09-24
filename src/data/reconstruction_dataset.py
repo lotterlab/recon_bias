@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import Dataset
 import nibabel as nib
 from fastmri import fft2c, ifft2c, tensor_to_complex_np
+import fastmri
 import matplotlib.pyplot as plt
 
 from src.utils.labels import diagnosis_map, sex_map, extract_labels_from_row
@@ -158,17 +159,18 @@ class ReconstructionDataset(Dataset):
 
         # Reconstruct the undersampled image by performing the inverse Fourier transform
         undersampled_image = ifft2c(undersampled_kspace)
-        
-        # Convert to numpy for visualization
-        undersampled_image_np = tensor_to_complex_np(undersampled_image)  # Shape: [H, W]
     
-        return undersampled_image_np
+        return undersampled_image
 
     def undersample_slice(self, slice: torch.Tensor) -> torch.Tensor:
         if self.sampling_mask == "radial": 
-            return self.undersample_image_with_radial_mask(slice)
+            undersampled_slice = self.undersample_image_with_radial_mask(slice)
         else: 
             raise ValueError("Sampling mask not recognized")
+        
+        undersampled_slice = fastmri.complex_abs(undersampled_slice)
+
+        return undersampled_slice
         
     def __len__(self):
         return len(self.metadata)
@@ -187,5 +189,8 @@ class ReconstructionDataset(Dataset):
 
         # undersample image
         undersampled_tensor = self.undersample_slice(slice_tensor)
+
+        slice_tensor = slice_tensor.unsqueeze(0)
+        undersampled_tensor = undersampled_tensor.unsqueeze(0)
 
         return slice_tensor, undersampled_tensor
