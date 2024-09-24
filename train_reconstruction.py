@@ -7,19 +7,15 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 # Import your dataset, models, and trainer
-from src.data.classification_dataset import ClassificationDataset
-from src.model.classification.classification_model import (
-    TGradeBCEClassifier,
-    TTypeBCEClassifier,
-    NLLSurvClassifier,
-)
-from src.model.classification.resnet_classification_network import ResNetClassifierNetwork
+from src.data.reconstruction_dataset import ReconstructionDataset
+from src.model.reconstruction.reconstruction_model import ReconstructionModel
+from src.model.reconstruction.vgg import VGGAutoEncoder, get_configs, load_dict
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train a classification model.")
+    parser = argparse.ArgumentParser(description="Train a reconstruction model.")
     parser.add_argument(
         "-c",
         "--config",
@@ -41,14 +37,15 @@ def main():
     batch_size = config['batch_size']
     num_train_samples = config.get('num_train_samples', None)
     num_val_samples = config.get('num_val_samples', None)
-    classifier_type = config['classifier_type']
-    network_type = config.get('network_type', 'ResNet18')
+    network_type = config.get('network_type', 'VGG')
+    network_path = config.get('network_path', None)
     data_root = config['data_root']
     seed = config.get('seed', 31415)
     save_interval = config.get('save_interval', 1)
     early_stopping_patience = config.get('early_stopping_patience', None)
     type = config.get('type', 'T2') 
-    pathology = config.get('pathology', ["edema","non_enhancing","enhancing"])
+    pathology = config.get('pathology', None)
+    sampling_mask = config.get('sampling_mask', 'radial')
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -70,56 +67,49 @@ def main():
     )
 
     # Datasets and DataLoaders
-    train_dataset = ClassificationDataset(
+    train_dataset = ReconstructionDataset(
         data_root=data_root,
         transform=transform,
         split="train",
         number_of_samples=num_train_samples,
         seed=seed,
         type=type,
-        pathology=pathology
+        pathology=pathology, 
+        sampling_mask=sampling_mask
     )
-    val_dataset = ClassificationDataset(
+    val_dataset = ReconstructionDataset(
         data_root=data_root,
         transform=transform,
         split="val",
         number_of_samples=num_val_samples,
         seed=seed,
         type=type,
-        pathology=pathology
+        pathology=pathology, 
+        sampling_mask=sampling_mask
     )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=8
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=8
     )
 
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Classifier
-    if classifier_type == 'TTypeBCEClassifier':
-        model = TTypeBCEClassifier()
-    elif classifier_type == 'TGradeBCEClassifier':
-        model = TGradeBCEClassifier()
-    elif classifier_type == 'NLLSurvClassifier':
-        bin_size = config.get('bin_size', 1000)
-        eps = config.get('eps', 1e-8)
-        model = NLLSurvClassifier(bin_size=bin_size, eps=eps)
-    else:
-        raise ValueError(f"Unknown classifier type: {classifier_type}")
-
+    model = ReconstructionModel()
     model = model.to(device)
 
     # Model
-    if network_type == 'ResNet18':
-        network = ResNetClassifierNetwork(num_classes=model.target_size)
-    elif network_type == 'ResNet50':
-        network = ResNetClassifierNetwork(num_classes=model.target_size, resnet_version='resnet50')
+    if network_type == 'VGG':
+        network = VGGAutoEncoder(get_configs("vgg16"))
     else:
         raise ValueError(f"Unknown network type: {network_type}")
+    
+    if network_path:
+        load_dict(network_path, network)
 
     network = network.to(device)
 

@@ -7,7 +7,7 @@ import torch
 import datetime
 import pandas as pd
 
-from src.model.classification.classification_network import ResNetClassifierNetwork
+from src.model.classification.resnet_classification_network import ResNetClassifierNetwork
 from src.model.classification.classification_model import (
     Classifier,
     TGradeBCEClassifier,

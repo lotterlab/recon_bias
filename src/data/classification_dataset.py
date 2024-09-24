@@ -86,4 +86,6 @@ class ClassificationDataset(Dataset):
 
         labels = extract_labels_from_row(row)
 
+        slice_tensor = slice_tensor.unsqueeze(0)
+
         return slice_tensor, labels

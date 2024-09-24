@@ -142,7 +142,7 @@ def process_patient_folder(parent_dir, patient_folder, metadata_file, split, out
 
 
 # Main function to process all patients
-def process_all_patients(source_directory, metadata_file, output_file, split='train'):
+def process_all_patients(source_directory, metadata_file, output_file):
     """
     Process all patient folders and save the metadata for each slice in a CSV file.
     
@@ -162,8 +162,27 @@ def process_all_patients(source_directory, metadata_file, output_file, split='tr
         ])
 
     # Process each patient folder
-    for patient_folder in os.listdir(source_directory):
+    patient_folders = [
+        f
+        for f in os.listdir(source_directory)
+        if os.path.isdir(os.path.join(source_directory, f))
+    ]
+
+    random.shuffle(patient_folders)
+
+    # Split patients: 70% train, 10% val, 20% test
+    total_patients = len(patient_folders)
+    train_split = int(0.7 * total_patients)
+    val_split = int(0.1 * total_patients)
+
+    train_patients = patient_folders[:train_split]
+    val_patients = patient_folders[train_split : train_split + val_split]
+    test_patients = patient_folders[train_split + val_split :]
+
+
+    for patient_folder in patient_folders:
         print(f"Processing {patient_folder}...")
+        split = 'train' if patient_folder in train_patients else 'val' if patient_folder in val_patients else 'test'
         patient_path = os.path.join(source_directory, patient_folder)
         if os.path.isdir(patient_path):
             process_patient_folder(source_directory, patient_folder, metadata_file, split, output_file)
@@ -175,4 +194,4 @@ metadata_file = '/homes9/matteow/data/UCSF-PDGM/UCSF-PDGM-metadata.csv'
 output_file = '/homes9/matteow/data/UCSF-PDGM/metadata.csv'
 
 # Process all patients and generate the metadata file
-process_all_patients(source_directory, metadata_file, output_file, split='train')
+process_all_patients(source_directory, metadata_file, output_file)
