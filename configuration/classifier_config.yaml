@@ -10,7 +10,7 @@ early_stopping_patience: 3
 data_root: '../../data/UCSF-PDGM'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-num_train_samples: 100
+num_train_samples: 10
 num_val_samples: 10
 
 classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'

@@ -46,6 +46,18 @@ class ClassifierModel(ModelWrapper):
     def accumulation_function(self, results):
         pass
 
+    def save_snapshot(self, x, y, y_pred, path, device, epoch):
+        y_transformed = self.target_transformation(y)
+        y_transformed = y_transformed.squeeze()
+
+        y_pred = self.classification_criteria(y_pred)
+        y_pred = y_pred.squeeze()
+
+        # save labels to text file 
+        with open(path + ".txt", "w") as f:
+            f.write("Ground truth: " + str(y_transformed.cpu().numpy()) + "\n")
+            f.write("Predictions: " + str(y_pred.cpu().numpy()) + "\n")
+
 
 class TTypeBCEClassifier(ClassifierModel):
     def __init__(self):
@@ -160,6 +172,7 @@ class TGradeBCEClassifier(ClassifierModel):
     @property
     def performance_metric_name(self):
         return "Accuracy"
+
 
 
 class NLLSurvClassifier(ClassifierModel):

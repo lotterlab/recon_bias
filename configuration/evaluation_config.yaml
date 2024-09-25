@@ -2,7 +2,7 @@ data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
 output_name: "test-evaluation"
 number_of_images: 10
-reconstruction_model: "/homes9/matteow/code/dfci/output/recon_test_20240924_182501/checkpoints/recon_test_20240924_182501_epoch_3.pth"
+reconstruction_model: "/homes9/matteow/code/dfci/output/recon_test_20240925_080957/checkpoints/recon_test_20240925_080957_epoch_3_final.pth"
 classifiers:
   - type: "TGradeBCEClassifier"
     network: "ResNet18"

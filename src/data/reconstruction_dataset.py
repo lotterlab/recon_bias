@@ -194,3 +194,7 @@ class ReconstructionDataset(Dataset):
         undersampled_tensor = undersampled_tensor.unsqueeze(0)
 
         return slice_tensor, undersampled_tensor
+    
+    def get_random_sample(self):
+        idx = np.random.randint(0, len(self.metadata))
+        return self.__getitem__(idx)

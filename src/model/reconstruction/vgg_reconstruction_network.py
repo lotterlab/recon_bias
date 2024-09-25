@@ -21,6 +21,26 @@ def get_configs(arch="vgg16"):
 
     return configs
 
+class VGGReconstructionNetwork(nn.Module):
+    def __init__(self, configs, network_path=None):
+        super(VGGReconstructionNetwork, self).__init__()
+        self.vgg = VGGAutoEncoder(configs)
+
+        if network_path:
+            self.vgg = load_dict(network_path, self.vgg)
+
+        self.vgg.encoder.conv1 = nn.Conv2d(
+                1, 64, kernel_size=3, stride=1, padding=1, bias=False
+            )            
+        self.vgg.decoder.conv5 = nn.Conv2d(
+                64, 1, kernel_size=3, stride=1, padding=1, bias=False
+            )  
+
+
+    def forward(self, x):
+        x = self.vgg(x)
+        return x
+
 
 class VGGAutoEncoder(nn.Module):
     def __init__(self, configs):

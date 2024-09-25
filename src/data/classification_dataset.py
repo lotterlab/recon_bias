@@ -89,3 +89,7 @@ class ClassificationDataset(Dataset):
         slice_tensor = slice_tensor.unsqueeze(0)
 
         return slice_tensor, labels
+
+    def get_random_sample(self):
+        idx = np.random.randint(0, len(self.metadata))
+        return self.__getitem__(idx)

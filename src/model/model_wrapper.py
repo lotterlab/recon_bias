@@ -35,3 +35,7 @@ class ModelWrapper(ABC, nn.Module):
     @abstractmethod
     def performance_metric_name(self):
         pass
+
+    @abstractmethod
+    def save_snapshot(self, x, y, y_pred, path, device, epoch):
+        pass

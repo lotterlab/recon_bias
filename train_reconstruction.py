@@ -10,7 +10,7 @@ from torch import nn
 # Import your dataset, models, and trainer
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.vgg import VGGAutoEncoder, get_configs, load_dict
+from src.model.reconstruction.vgg_reconstruction_network import get_configs, VGGReconstructionNetwork
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
@@ -105,15 +105,7 @@ def main():
 
     # Model
     if network_type == 'VGG':
-        network = VGGAutoEncoder(get_configs("vgg16"))
-        if network_path:
-            load_dict(network_path, network)
-        network.encoder.conv1 = nn.Conv2d(
-                1, 64, kernel_size=3, stride=1, padding=1, bias=False
-            )            
-        network.decoder.conv5 = nn.Conv2d(
-                64, 1, kernel_size=3, stride=1, padding=1, bias=False
-            )            
+        network = VGGReconstructionNetwork(get_configs("vgg16"), network_path)
     else:
         raise ValueError(f"Unknown network type: {network_type}")
 

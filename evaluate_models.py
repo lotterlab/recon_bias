@@ -17,7 +17,7 @@ from src.model.classification.classification_model import (
 )
 from src.evaluation.prediction import process_patients
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.vgg import VGGAutoEncoder, get_configs
+from src.model.reconstruction.vgg_reconstruction_network import get_configs, VGGReconstructionNetwork
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
@@ -62,14 +62,8 @@ def load_reconstruction_model(model_path: str, device) -> torch.nn.Module:
     model = ReconstructionModel() 
     model = model.to(device)
 
-    network = VGGAutoEncoder(get_configs("vgg16"))
+    network = VGGReconstructionNetwork(get_configs("vgg16"))
     network = network.to(device)
-    network.encoder.conv1 = nn.Conv2d(
-                1, 64, kernel_size=3, stride=1, padding=1, bias=False
-            )            
-    network.decoder.conv5 = nn.Conv2d(
-            64, 1, kernel_size=3, stride=1, padding=1, bias=False
-        ) 
 
     model.set_network(network)
 
