@@ -1,16 +1,16 @@
 output_dir: './output'
-output_name: 'recon_test'
-save_interval: 1
+output_name: 'vgg'
+save_interval: 5
 
 num_epochs: 100
 learning_rate: 0.001
-batch_size: 5
+batch_size: 16
 #early_stopping_patience: 3
 
 data_root: '../../data/UCSF-PDGM'
 type: 'T2'
-num_train_samples: 10
-num_val_samples: 1
+num_train_samples: 1000
+num_val_samples: 10
 
 network_type: 'VGG'  # Options: 'VGG'
 network_path: './models/imagenet-vgg16.pth'

@@ -63,3 +63,4 @@ class ReconstructionModel(ModelWrapper):
         ax[3].set_title("Difference")
         ax[3].axis("off")
         plt.savefig(path)
+        plt.close()
