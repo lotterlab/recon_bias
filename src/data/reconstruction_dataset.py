@@ -26,7 +26,9 @@ class ReconstructionDataset(Dataset):
         split: Optional[str] = "train",
         type: Optional[str] = "T2",
         pathology: Optional[list] = None,
-        sampling_mask: Optional[str] = "radial"
+        sampling_mask: Optional[str] = "radial", 
+        lower_slice = None, 
+        upper_slice = None
     ):
         """
         Initialize the MRIDataset.
@@ -46,6 +48,8 @@ class ReconstructionDataset(Dataset):
         self.type = type
         self.pathology = pathology
         self.sampling_mask = sampling_mask
+        self.lower_slice = lower_slice
+        self.upper_slice = upper_slice
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -66,6 +70,12 @@ class ReconstructionDataset(Dataset):
                 pathology_filter |= (pl.col(path) == True)
 
             self.metadata = self.metadata.filter(pathology_filter)
+
+        if self.lower_slice:
+            self.metadata = self.metadata.filter(pl.col("slice_id") >= self.lower_slice)
+
+        if self.upper_slice:
+            self.metadata = self.metadata.filter(pl.col("slice_id") <= self.upper_slice)
 
         if self.number_of_samples:
             self.metadata = self.metadata.collect().sample(
@@ -184,8 +194,10 @@ class ReconstructionDataset(Dataset):
         scan = nifti_img.get_fdata()
         slice = scan[:, :, row["slice_id"]]
         slice_tensor = torch.from_numpy(slice).float()
+
         if self.transform:
             slice_tensor = self.transform(slice_tensor)
+
 
         # undersample image
         undersampled_tensor = self.undersample_slice(slice_tensor)
@@ -193,7 +205,7 @@ class ReconstructionDataset(Dataset):
         slice_tensor = slice_tensor.unsqueeze(0)
         undersampled_tensor = undersampled_tensor.unsqueeze(0)
 
-        return slice_tensor, undersampled_tensor
+        return undersampled_tensor, slice_tensor
     
     def get_random_sample(self):
         idx = np.random.randint(0, len(self.metadata))

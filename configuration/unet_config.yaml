@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'vgg'
+output_name: 'unet-test'
 save_interval: 1
 
 num_epochs: 100
@@ -13,7 +13,6 @@ num_train_samples: 1000
 lower_slice: 60
 upper_slice: 130
 
-network_type: 'VGG'  # Options: 'VGG'
-network_path: './models/imagenet-vgg16.pth'
+network_type: 'unet'
 sampling_mask: 'radial'
 seed: 31415

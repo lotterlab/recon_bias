@@ -22,7 +22,9 @@ class ClassificationDataset(Dataset):
         seed: Optional[int] = 31415,
         split: Optional[str] = "train",
         type: Optional[str] = "T2",
-        pathology: Optional[list] = ["edema","non_enhancing","enhancing"]
+        pathology: Optional[list] = ["edema","non_enhancing","enhancing"], 
+        lower_slice = None,
+        upper_slice = None
     ):
         """
         Initialize the MRIDataset.
@@ -41,6 +43,8 @@ class ClassificationDataset(Dataset):
         self.metadata: pl.LazyFrame = pl.scan_csv(data_root + "/metadata.csv")
         self.type = type
         self.pathology = pathology
+        self.lower_slice = lower_slice
+        self.upper_slice = upper_slice
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -61,6 +65,12 @@ class ClassificationDataset(Dataset):
                 pathology_filter |= (pl.col(path) == True)
 
             self.metadata = self.metadata.filter(pathology_filter)
+
+        if self.lower_slice:
+            self.metadata = self.metadata.filter(pl.col("slice_id") >= self.lower_slice)
+
+        if self.upper_slice:
+            self.metadata = self.metadata.filter(pl.col("slice_id") <= self.upper_slice)
 
         if self.number_of_samples:
             self.metadata = self.metadata.collect().sample(

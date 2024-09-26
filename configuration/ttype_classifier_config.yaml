@@ -1,15 +1,15 @@
 output_dir: './output'
-output_name: 'ttype'
-save_interval: 3
+output_name: 'ttype_test'
+save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
 batch_size: 16
 early_stopping_patience: 5
 
-data_root: '../../data/UCSF-PDGM/processed/'
-log_dir: './runs'
-
+data_root: '../../data/UCSF-PDGM/'
+type: 'T2'
+pathology: ["edema","non_enhancing"]
 classifier_type: 'TTypeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415

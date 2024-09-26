@@ -17,7 +17,7 @@ from src.model.classification.classification_model import (
 )
 from src.evaluation.prediction import process_patients
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.vgg_reconstruction_network import get_configs, VGGReconstructionNetwork
+from code.dfci.src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
@@ -116,7 +116,7 @@ def main():
     metadata = load_metadata(data_root + "/metadata.csv")
     metadata = metadata[metadata["split"] == "test"]
 
-    results = process_patients(metadata, classifiers, reconstruction_model, number_of_images)
+    results = process_patients(data_root, metadata, classifiers, reconstruction_model, number_of_images)
 
     # Create DataFrame for results
     results_df = pd.DataFrame(results)

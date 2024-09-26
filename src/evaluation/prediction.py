@@ -13,6 +13,7 @@ def majority_voting(predictions: List[int]) -> int:
     return max(set(predictions), key=predictions.count)
 
 def process_patient_data(
+    data_root,
     df: pd.DataFrame,
     classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None
@@ -33,7 +34,7 @@ def process_patient_data(
         patient_gt = None
 
         for _, row in df.iterrows():
-            image = np.load(row["file_path"])
+            image = np.load(os.path.join(data_root, row["file_path"]))
             image_tensor = torch.from_numpy(image).unsqueeze(0).unsqueeze(0).float()
             labels = extract_labels_from_row(row).unsqueeze(0)
 
@@ -67,6 +68,7 @@ def process_patient_data(
 
 
 def process_patients(
+    data_root,
     metadata: pd.DataFrame,
     classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None,
@@ -82,7 +84,7 @@ def process_patients(
                 break
         index += 1
         print(f"Processing patient {patient_id}...")
-        patient_info = process_patient_data(patient_df, classifiers, reconstruction_model)
+        patient_info = process_patient_data(data_root, patient_df, classifiers, reconstruction_model)
         patient_infos.append(patient_info)
 
     return patient_infos

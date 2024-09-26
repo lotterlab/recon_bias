@@ -125,10 +125,12 @@ class Trainer:
 
             self.optimizer.zero_grad()
 
+
             outputs = self.model(inputs)
             loss = self.model.criterion(outputs, labels)
 
             loss.backward()
+
             self.optimizer.step()
 
             running_loss += loss.item() * inputs.size(0)

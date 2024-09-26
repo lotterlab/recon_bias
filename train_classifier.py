@@ -49,6 +49,8 @@ def main():
     early_stopping_patience = config.get('early_stopping_patience', None)
     type = config.get('type', 'T2') 
     pathology = config.get('pathology', ["edema","non_enhancing","enhancing"])
+    lower_slice = config.get('lower_slice', None)
+    upper_slice = config.get('upper_slice', None)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -77,7 +79,9 @@ def main():
         number_of_samples=num_train_samples,
         seed=seed,
         type=type,
-        pathology=pathology
+        pathology=pathology, 
+        lower_slice=lower_slice,
+        upper_slice=upper_slice
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -86,7 +90,9 @@ def main():
         number_of_samples=num_val_samples,
         seed=seed,
         type=type,
-        pathology=pathology
+        pathology=pathology, 
+        lower_slice=lower_slice,
+        upper_slice=upper_slice
     )
 
     train_loader = DataLoader(

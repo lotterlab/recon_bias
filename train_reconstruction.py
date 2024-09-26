@@ -10,9 +10,10 @@ from torch import nn
 # Import your dataset, models, and trainer
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.vgg_reconstruction_network import get_configs, VGGReconstructionNetwork
+from src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
+from src.model.reconstruction.unet import UNet
 
 
 def main():
@@ -47,6 +48,8 @@ def main():
     type = config.get('type', 'T2') 
     pathology = config.get('pathology', None)
     sampling_mask = config.get('sampling_mask', 'radial')
+    lower_slice = config.get('lower_slice', None)
+    upper_slice = config.get('upper_slice', None)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -76,7 +79,9 @@ def main():
         seed=seed,
         type=type,
         pathology=pathology, 
-        sampling_mask=sampling_mask
+        sampling_mask=sampling_mask, 
+        lower_slice=lower_slice,
+        upper_slice=upper_slice
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
@@ -86,14 +91,16 @@ def main():
         seed=seed,
         type=type,
         pathology=pathology, 
-        sampling_mask=sampling_mask
+        sampling_mask=sampling_mask, 
+        lower_slice=lower_slice,
+        upper_slice=upper_slice
     )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=8
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=1
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=8
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=1
     )
 
     # Device configuration
@@ -106,6 +113,8 @@ def main():
     # Model
     if network_type == 'VGG':
         network = VGGReconstructionNetwork(get_configs("vgg16"), network_path)
+    elif network_type == 'unet':
+        network = UNet()
     else:
         raise ValueError(f"Unknown network type: {network_type}")
 

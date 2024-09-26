@@ -1,9 +1,12 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
-output_name: "test-evaluation"
+output_name: "test-evaluation-new"
 number_of_images: 10
-reconstruction_model: "/homes9/matteow/code/dfci/output/recon_test_20240925_080957/checkpoints/recon_test_20240925_080957_epoch_3_final.pth"
+reconstruction_model: "../output/recon_test_20240925_090156/checkpoints/recon_test_20240925_090156_epoch_71.pth"
 classifiers:
   - type: "TGradeBCEClassifier"
     network: "ResNet18"
-    model_path: "/homes9/matteow/code/dfci/output/test-classifier_20240924_164649/checkpoints/test-classifier_20240924_164649_epoch_11.pth"
+    model_path: "./output/tgrade_test_20240925_113550/checkpoints/tgrade_test_20240925_113550_epoch_2.pth"
+  - type: "TTypeBCEClassifier"
+    network: "ResNet18"
+    model_path: "./output/ttype_test_20240925_113544/checkpoints/ttype_test_20240925_113544_epoch_2.pth"
