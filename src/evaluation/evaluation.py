@@ -406,3 +406,21 @@ def aggregate_classifier_predictions(df, classifier, output_dir):
 
     print("\nMetrics DataFrame:")
     print(metrics_df)
+
+
+def classifier_evaluation(df, classifier, output_dir):
+    """Evaluate the classifier predictions and generate visualizations."""
+    # Evaluate the classifier predictions
+    results_df = evaluate_classifier_predictions(df, classifier, output_dir)
+    
+    # Aggregate the classifier predictions
+    aggregate_classifier_predictions(df, classifier, output_dir)
+    
+
+def reconstruction_evaluation(df, classifier, output_dir):
+    """Evaluate the reconstruction predictions and generate visualizations."""
+    # Evaluate the classifier predictions
+    results_df = evaluate_classifier_predictions(df, classifier, output_dir)
+    
+    # Aggregate the classifier predictions
+    aggregate_classifier_predictions(df, classifier, output_dir)

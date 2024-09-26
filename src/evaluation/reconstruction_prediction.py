@@ -67,7 +67,7 @@ def process_patient_data(
     return patient_info
 
 
-def process_patients(
+def reconstruction_predictions(
     data_root,
     metadata: pd.DataFrame,
     classifiers: List[dict],

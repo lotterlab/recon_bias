@@ -40,6 +40,16 @@ class ClassifierModel(ModelWrapper):
 
     @abstractmethod
     def classification_criteria(self, logits):
+        """
+        Specifies how to convert logits to predictions.
+        """
+        pass
+
+    @abstractmethod
+    def final_activation(self, logits): 
+        """
+        Specifies the final activation function for the model.
+        """
         pass
 
     @abstractmethod 

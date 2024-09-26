@@ -1,13 +1,21 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
 output_name: "test-evaluation"
+seed: 42
 reconstruction: 
   num_samples: 10
+  lower_slice: 60
+  upper_slice: 130
+  sampling_mask: "radial"
+  pathology: ["edema","non_enhancing"]
   model: 
     - network: "UNet"
       model_path: "./output/unet-test_20240925_204357/checkpoints/unet-test_20240925_204357_epoch_1.pth"
 classifiers:
   num_samples: 10
+  lower_slice: 60
+  upper_slice: 130
+  pathology: ["edema","non_enhancing"]
   models: 
     - type: "TGradeBCEClassifier"
       network: "ResNet18"

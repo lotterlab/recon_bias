@@ -28,7 +28,8 @@ class ReconstructionDataset(Dataset):
         pathology: Optional[list] = None,
         sampling_mask: Optional[str] = "radial", 
         lower_slice = None, 
-        upper_slice = None
+        upper_slice = None, 
+        evaluation = False
     ):
         """
         Initialize the MRIDataset.
@@ -50,6 +51,7 @@ class ReconstructionDataset(Dataset):
         self.sampling_mask = sampling_mask
         self.lower_slice = lower_slice
         self.upper_slice = upper_slice
+        self.evaluation = evaluation
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -77,7 +79,7 @@ class ReconstructionDataset(Dataset):
         if self.upper_slice:
             self.metadata = self.metadata.filter(pl.col("slice_id") <= self.upper_slice)
 
-        if self.number_of_samples:
+        if self.number_of_samples and not self.evaluation:
             self.metadata = self.metadata.collect().sample(
                 n=self.number_of_samples, seed=self.seed
             )
@@ -187,6 +189,10 @@ class ReconstructionDataset(Dataset):
 
     def __getitem__(self, idx: int):
         row = self.metadata.row(idx, named=True)
+
+        return self._get_item_from_row(row)
+    
+    def _get_item_from_row(self, row):
         # Load np array from file
         nifti_img = nib.load(self.data_root + "/" + row["file_path"])
     
@@ -204,9 +210,28 @@ class ReconstructionDataset(Dataset):
 
         slice_tensor = slice_tensor.unsqueeze(0)
         undersampled_tensor = undersampled_tensor.unsqueeze(0)
-
+        
         return undersampled_tensor, slice_tensor
     
     def get_random_sample(self):
         idx = np.random.randint(0, len(self.metadata))
         return self.__getitem__(idx)
+    
+    def get_patient_slices(self, patient_id): 
+        patient_slices_metadata = self.metadata.filter(pl.col("patient_id") == patient_id).collect()
+
+        # If no slices found, raise an error or return empty
+        if len(patient_slices_metadata) == 0:
+            print(f"No slices found for patient_id={patient_id}")
+            return []
+
+        # Collect all slices for the patient
+        slices = []
+        for row_idx in range(len(patient_slices_metadata)):
+            row = patient_slices_metadata.row(row_idx, named=True)
+            
+            # Load the slice for this row directly
+            slice_tensor, labels = self._get_item_from_row(row)
+            slices.append((slice_tensor, labels))
+        
+        return slices

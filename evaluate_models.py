@@ -7,6 +7,8 @@ import torch
 import datetime
 import pandas as pd
 from torch import nn
+import random
+import torchvision.transforms as transforms
 
 from src.model.classification.resnet_classification_network import ResNetClassifierNetwork
 from src.model.classification.classification_model import (
@@ -15,11 +17,25 @@ from src.model.classification.classification_model import (
     TTypeBCEClassifier,
     NLLSurvClassifier,
 )
-from src.evaluation.prediction import process_patients
+from src.evaluation.classifier_prediction import classifier_predictions
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
 from src.model.reconstruction.unet import UNet
+from src.data.classification_dataset import ClassificationDataset
+from src.data.reconstruction_dataset import ReconstructionDataset
+from src.utils.transformations import min_max_slice_normalization
+from src.evaluation.evaluation import classifier_evaluation, reconstruction_evaluation
+from src.evaluation.reconstruction_prediction import reconstruction_predictions
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # if using multi-GPU
+    torch.backends.cudnn.deterministic = True  # For reproducibility
+    torch.backends.cudnn.benchmark = False   
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
     return pd.read_csv(metadata_path)
@@ -92,7 +108,6 @@ def main():
 
     # Extract paths and classifier information from the config
     data_root = config["data_root"]
-    classifiers_config = config["classifiers"]
     output_dir = config["output_dir"]
     output_name = config["output_name"]
 
@@ -101,12 +116,32 @@ def main():
     output_path = os.path.join(output_dir, output_name)
     os.makedirs(output_path, exist_ok=True)
 
+    # Save config to output directory for reproducibility
+    with open(os.path.join(output_path, "config.yaml"), "w") as f:
+        yaml.dump(config, f)
+    print(f"Results saved to {output_path}")
+
+    # Load metadata
+    metadata = load_metadata(data_root + "/metadata.csv")
+    metadata = metadata[metadata["split"] == "test"]
+
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+    classifiers_config = config["classifiers"]
     num_classifier_samples = None
+    lower_slice_classifier = None 
+    upper_slice_classifier = None
+
     if "num_samples" in classifiers_config:
             num_classifier_samples = classifiers_config["num_samples"]
+    if "lower_slice" in classifiers_config:
+        lower_slice_classifier = classifiers_config["lower_slice"]
+    if "upper_slice" in classifiers_config:
+        upper_slice_classifier = classifiers_config["upper_slice"]
+    if "pathology" in classifiers_config:
+        pathology_classifier = classifiers_config["pathology"]
     
     # Initialize classifiers
     classifiers = []
@@ -115,17 +150,28 @@ def main():
         network_type = classifier_cfg["network"]
         model_path = classifier_cfg["model_path"]
         classifier = load_classifier(classifier_type, network_type, model_path, device, classifier_cfg)
-        classifiers.append({"classifier": classifier, "name": classifier_type})
+        classifiers.append({"model": classifier, "name": classifier_type})
 
         # Accessing reconstruction config
     reconstruction_config = config.get('reconstruction', None)  # Get the reconstruction config, if it exists
 
-    reconstruction_model = None  
     num_reconstruction_samples = None
+    lower_slice_reconstruction = None
+    upper_slice_reconstruction = None
+    sampling_mask = None
+    reconstruction = None
 
     if reconstruction_config is not None and "model" in reconstruction_config and reconstruction_config["model"] is not None and len(reconstruction_config["model"]) > 0:
         if "num_samples" in reconstruction_config:
             num_reconstruction_samples = reconstruction_config["num_samples"]
+        if "lower_slice" in reconstruction_config:
+            lower_slice_reconstruction = reconstruction_config["lower_slice"]
+        if "upper_slice" in reconstruction_config:
+            upper_slice_reconstruction = reconstruction_config["upper_slice"]
+        if "pathology" in reconstruction_config:
+            pathology_reconstruction = reconstruction_config["pathology"]
+        if "sampling_mask" in reconstruction_config:
+            sampling_mask = reconstruction_config["sampling_mask"]
 
         reconstruction_cfg = reconstruction_config["model"][0]  
 
@@ -134,35 +180,80 @@ def main():
             model_path = reconstruction_cfg["model_path"]
 
             reconstruction_model = load_reconstruction_model(network_type, model_path, device)
-            print(f"Reconstruction model {network_type} loaded from {model_path}.")
+            reconstruction = {"model": reconstruction_model, "name": network_type}
         else:
             print("Reconstruction model configuration is incomplete or missing required fields.")
         
     else:
         print("No reconstruction model specified.")
 
-    print(f"Number of classifier samples: {num_classifier_samples}")
-    print(f"Number of reconstruction samples: {num_reconstruction_samples}")
+    
+    transform = transforms.Compose(
+        [
+            min_max_slice_normalization,
+        ]
+    )
 
-    # Load metadata
-    metadata = load_metadata(data_root + "/metadata.csv")
-    metadata = metadata[metadata["split"] == "test"]
+    seed = config.get("seed", 42)
 
-    results = process_patients(data_root, metadata, classifiers, reconstruction_model, num_classifier_samples)
+    # Process classifiers
+    classifier_dataset = ClassificationDataset(
+        data_root=data_root,
+        transform=transform,
+        split="test",
+        number_of_samples=num_classifier_samples,
+        seed=seed,
+        type=type,
+        pathology=pathology_classifier, 
+        lower_slice=lower_slice_classifier,
+        upper_slice=upper_slice_classifier, 
+        evaluation=True
+    )
+
+    # Process and evaluate classification
+    classifier_results = classifier_predictions(data_root, classifier_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
 
     # Create DataFrame for results
-    results_df = pd.DataFrame(results)
+    classifier_results_df = pd.DataFrame(classifier_results)
 
     # Save results to output directory
-    results_df.to_csv(os.path.join(output_path, f"{output_name}_results.csv"), index=False)
-
-    # Save config to output directory for reproducibility
-    with open(os.path.join(output_path, "config.yaml"), "w") as f:
-        yaml.dump(config, f)
-    print(f"Results saved to {output_path}")
+    classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
 
     # Evaluate predictions
-    #evaluate_classifiers(results_df, classifiers, output_path)
+    #classifier_evaluation(classifier_results_df, classifiers, output_path)
+
+    """
+    if reconstruction is None:
+        print("No reconstruction model specified. Skipping reconstruction evaluation.")
+        return
+    # Process reconstruction 
+    reconstruction_dataset = ReconstructionDataset(
+        data_root=data_root,
+        transform=transform,
+        split="test",
+        number_of_samples=num_reconstruction_samples,
+        seed=seed,
+        type=type,
+        pathology=pathology_reconstruction,
+        lower_slice=lower_slice_reconstruction,
+        upper_slice=upper_slice_reconstruction, 
+        evaluation=True, 
+        sampling_mask=sampling_mask
+    )
+
+
+    # Process and evaluate reconstruction
+    reconstruction_results = reconstruction_predictions(data_root, metadata, reconstruction, num_reconstruction_samples, reconstruction_iterator)
+
+    # Create DataFrame for results
+    reconstruction_results_df = pd.DataFrame(reconstruction_results)
+
+    # Save results to output directory
+    reconstruction_results_df.to_csv(os.path.join(output_path, f"{output_name}_reconstruction_results.csv"), index=False)
+
+    # Evaluate predictions
+    reconstruction_evaluation(reconstruction_results_df, reconstruction, output_path)"""
+
 
 
 if __name__ == "__main__":
