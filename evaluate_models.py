@@ -17,7 +17,8 @@ from src.model.classification.classification_model import (
 )
 from src.evaluation.prediction import process_patients
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from code.dfci.src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
+from src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
+from src.model.reconstruction.unet import UNet
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
@@ -58,11 +59,18 @@ def load_classifier(classifier_type: str, network_type: str, model_path: str, de
     return model
 
 
-def load_reconstruction_model(model_path: str, device) -> torch.nn.Module:
+def load_reconstruction_model(network_type, model_path, device) -> torch.nn.Module:
     model = ReconstructionModel() 
     model = model.to(device)
 
-    network = VGGReconstructionNetwork(get_configs("vgg16"))
+    print(f"Loading reconstruction model {network_type} from {model_path}...")
+    if network_type == 'VGG':
+        network = VGGReconstructionNetwork(get_configs("vgg16"))
+    elif network_type == 'UNet':
+        network = UNet()
+    else:
+        raise ValueError(f"Unknown network type: {network_type}")
+    
     network = network.to(device)
 
     model.set_network(network)
@@ -87,8 +95,6 @@ def main():
     classifiers_config = config["classifiers"]
     output_dir = config["output_dir"]
     output_name = config["output_name"]
-    reconstruction_model_path = config.get("reconstruction_model", None)
-    number_of_images = config.get("number_of_images", None)
 
     # Create output directory for evaluation
     output_name = f"{output_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -98,25 +104,51 @@ def main():
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load reconstruction model if provided
-    reconstruction_model = None
-    if reconstruction_model_path:
-        reconstruction_model = load_reconstruction_model(reconstruction_model_path, device)
-
+    num_classifier_samples = None
+    if "num_samples" in classifiers_config:
+            num_classifier_samples = classifiers_config["num_samples"]
+    
     # Initialize classifiers
     classifiers = []
-    for classifier_cfg in classifiers_config:
+    for classifier_cfg in classifiers_config["models"]:
         classifier_type = classifier_cfg["type"]
         network_type = classifier_cfg["network"]
         model_path = classifier_cfg["model_path"]
         classifier = load_classifier(classifier_type, network_type, model_path, device, classifier_cfg)
         classifiers.append({"classifier": classifier, "name": classifier_type})
 
+        # Accessing reconstruction config
+    reconstruction_config = config.get('reconstruction', None)  # Get the reconstruction config, if it exists
+
+    reconstruction_model = None  
+    num_reconstruction_samples = None
+
+    if reconstruction_config is not None and "model" in reconstruction_config and reconstruction_config["model"] is not None and len(reconstruction_config["model"]) > 0:
+        if "num_samples" in reconstruction_config:
+            num_reconstruction_samples = reconstruction_config["num_samples"]
+
+        reconstruction_cfg = reconstruction_config["model"][0]  
+
+        if "network" in reconstruction_cfg and "model_path" in reconstruction_cfg:
+            network_type = reconstruction_cfg["network"]
+            model_path = reconstruction_cfg["model_path"]
+
+            reconstruction_model = load_reconstruction_model(network_type, model_path, device)
+            print(f"Reconstruction model {network_type} loaded from {model_path}.")
+        else:
+            print("Reconstruction model configuration is incomplete or missing required fields.")
+        
+    else:
+        print("No reconstruction model specified.")
+
+    print(f"Number of classifier samples: {num_classifier_samples}")
+    print(f"Number of reconstruction samples: {num_reconstruction_samples}")
+
     # Load metadata
     metadata = load_metadata(data_root + "/metadata.csv")
     metadata = metadata[metadata["split"] == "test"]
 
-    results = process_patients(data_root, metadata, classifiers, reconstruction_model, number_of_images)
+    results = process_patients(data_root, metadata, classifiers, reconstruction_model, num_classifier_samples)
 
     # Create DataFrame for results
     results_df = pd.DataFrame(results)
