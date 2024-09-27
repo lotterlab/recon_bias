@@ -217,8 +217,9 @@ class ReconstructionDataset(Dataset):
         idx = np.random.randint(0, len(self.metadata))
         return self.__getitem__(idx)
     
-    def get_patient_slices(self, patient_id): 
-        patient_slices_metadata = self.metadata.filter(pl.col("patient_id") == patient_id).collect()
+    def get_patient_data(self, patient_id): 
+        patient_slices_metadata = self.metadata.filter(pl.col("patient_id") == patient_id)
+        patient_slices_metadata = patient_slices_metadata.sort("slice_id")
 
         # If no slices found, raise an error or return empty
         if len(patient_slices_metadata) == 0:

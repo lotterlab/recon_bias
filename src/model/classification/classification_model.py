@@ -26,7 +26,7 @@ class ClassifierModel(ModelWrapper):
 
     @property
     @abstractmethod
-    def target_size(self):
+    def num_classes(self):
         pass
 
     @property
@@ -75,7 +75,7 @@ class TTypeBCEClassifier(ClassifierModel):
         self.bce_loss = nn.BCEWithLogitsLoss()
 
     @property
-    def target_size(self):
+    def num_classes(self):
         return 1
 
     @property
@@ -123,6 +123,10 @@ class TTypeBCEClassifier(ClassifierModel):
     def performance_metric_name(self):
         return "Accuracy"
 
+    def final_activation(self, logits): 
+        logits = logits.squeeze()
+        return torch.sigmoid(logits)
+
 
 class TGradeBCEClassifier(ClassifierModel):
     """
@@ -135,7 +139,7 @@ class TGradeBCEClassifier(ClassifierModel):
         self.bce_loss = nn.BCEWithLogitsLoss()
 
     @property
-    def target_size(self):
+    def num_classes(self):
         return 1
 
     @property
@@ -183,6 +187,9 @@ class TGradeBCEClassifier(ClassifierModel):
     def performance_metric_name(self):
         return "Accuracy"
 
+    def final_activation(self, logits): 
+        logits = logits.squeeze()
+        return torch.sigmoid(logits)
 
 
 class NLLSurvClassifier(ClassifierModel):
@@ -193,7 +200,7 @@ class NLLSurvClassifier(ClassifierModel):
         self.eps = eps
 
     @property
-    def target_size(self):
+    def num_classes(self):
         return self.bin_size
 
     @property
@@ -250,3 +257,16 @@ class NLLSurvClassifier(ClassifierModel):
             float: The average survival bin index.
         """
         return results.mean()
+    
+    def performance_metric(self, x, y):
+        preds = self.classification_criteria(x)
+        transformed_labels = self.target_transformation(y)
+        return torch.sum(preds == transformed_labels)
+
+    @property
+    def performance_metric_name(self):
+        return "Accuracy"
+    
+    def final_activation(self, logits):
+        logits = logits.squeeze()
+        return torch.softmax(logits, dim=1)

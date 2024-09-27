@@ -26,6 +26,7 @@ from src.data.reconstruction_dataset import ReconstructionDataset
 from src.utils.transformations import min_max_slice_normalization
 from src.evaluation.evaluation import classifier_evaluation, reconstruction_evaluation
 from src.evaluation.reconstruction_prediction import reconstruction_predictions
+from src.utils.mock_data import get_mock_data
 
 def set_seed(seed):
     random.seed(seed)
@@ -58,9 +59,9 @@ def load_classifier(classifier_type: str, network_type: str, model_path: str, de
 
     # Model
     if network_type == 'ResNet18':
-        network = ResNetClassifierNetwork(num_classes=model.target_size)
+        network = ResNetClassifierNetwork(num_classes=model.num_classes)
     elif network_type == 'ResNet50':
-        network = ResNetClassifierNetwork(num_classes=model.target_size, resnet_version='resnet50')
+        network = ResNetClassifierNetwork(num_classes=model.num_classes, resnet_version='resnet50')
     else:
         raise ValueError(f"Unknown network type: {network_type}")
 
@@ -119,7 +120,6 @@ def main():
     # Save config to output directory for reproducibility
     with open(os.path.join(output_path, "config.yaml"), "w") as f:
         yaml.dump(config, f)
-    print(f"Results saved to {output_path}")
 
     # Load metadata
     metadata = load_metadata(data_root + "/metadata.csv")
@@ -133,15 +133,14 @@ def main():
     num_classifier_samples = None
     lower_slice_classifier = None 
     upper_slice_classifier = None
+    pathology_classifier = None
+    type_classifier = None
 
-    if "num_samples" in classifiers_config:
-            num_classifier_samples = classifiers_config["num_samples"]
-    if "lower_slice" in classifiers_config:
-        lower_slice_classifier = classifiers_config["lower_slice"]
-    if "upper_slice" in classifiers_config:
-        upper_slice_classifier = classifiers_config["upper_slice"]
-    if "pathology" in classifiers_config:
-        pathology_classifier = classifiers_config["pathology"]
+    num_classifier_samples = classifiers_config.get("num_samples", None)
+    lower_slice_classifier = classifiers_config.get("lower_slice", None)
+    upper_slice_classifier = classifiers_config.get("upper_slice", None)
+    pathology_classifier = classifiers_config.get("pathology", None)
+    type_classifier = classifiers_config.get("type", "T2")
     
     # Initialize classifiers
     classifiers = []
@@ -159,19 +158,17 @@ def main():
     lower_slice_reconstruction = None
     upper_slice_reconstruction = None
     sampling_mask = None
+    pathology_reconstruction = None
+    type_reconstruction = None
     reconstruction = None
 
     if reconstruction_config is not None and "model" in reconstruction_config and reconstruction_config["model"] is not None and len(reconstruction_config["model"]) > 0:
-        if "num_samples" in reconstruction_config:
-            num_reconstruction_samples = reconstruction_config["num_samples"]
-        if "lower_slice" in reconstruction_config:
-            lower_slice_reconstruction = reconstruction_config["lower_slice"]
-        if "upper_slice" in reconstruction_config:
-            upper_slice_reconstruction = reconstruction_config["upper_slice"]
-        if "pathology" in reconstruction_config:
-            pathology_reconstruction = reconstruction_config["pathology"]
-        if "sampling_mask" in reconstruction_config:
-            sampling_mask = reconstruction_config["sampling_mask"]
+        num_reconstruction_samples = reconstruction_config.get("num_samples", None)
+        lower_slice_reconstruction = reconstruction_config.get("lower_slice", None)
+        upper_slice_reconstruction = reconstruction_config.get("upper_slice", None)
+        pathology_reconstruction = reconstruction_config.get("pathology", None)
+        sampling_mask = reconstruction_config.get("sampling_mask", "radial")
+        type_reconstruction = reconstruction_config.get("type", "T2")
 
         reconstruction_cfg = reconstruction_config["model"][0]  
 
@@ -203,37 +200,20 @@ def main():
         split="test",
         number_of_samples=num_classifier_samples,
         seed=seed,
-        type=type,
+        type=type_classifier,
         pathology=pathology_classifier, 
         lower_slice=lower_slice_classifier,
         upper_slice=upper_slice_classifier, 
         evaluation=True
     )
 
-    # Process and evaluate classification
-    classifier_results = classifier_predictions(data_root, classifier_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
-
-    # Create DataFrame for results
-    classifier_results_df = pd.DataFrame(classifier_results)
-
-    # Save results to output directory
-    classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
-
-    # Evaluate predictions
-    #classifier_evaluation(classifier_results_df, classifiers, output_path)
-
-    """
-    if reconstruction is None:
-        print("No reconstruction model specified. Skipping reconstruction evaluation.")
-        return
-    # Process reconstruction 
     reconstruction_dataset = ReconstructionDataset(
         data_root=data_root,
         transform=transform,
         split="test",
         number_of_samples=num_reconstruction_samples,
         seed=seed,
-        type=type,
+        type=type_reconstruction,
         pathology=pathology_reconstruction,
         lower_slice=lower_slice_reconstruction,
         upper_slice=upper_slice_reconstruction, 
@@ -241,6 +221,23 @@ def main():
         sampling_mask=sampling_mask
     )
 
+    # Process and evaluate classification
+    #classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
+
+    # Create DataFrame for results
+    #classifier_results_df = pd.DataFrame(classifier_results)
+
+    # Save results to output directory
+    #classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
+
+    # Evaluate predictions
+    classifier_evaluation(get_mock_data(num_classifier_samples), classifiers, output_path)
+
+    """
+    if reconstruction is None:
+        print("No reconstruction model specified. Skipping reconstruction evaluation.")
+        return
+    # Process reconstruction 
 
     # Process and evaluate reconstruction
     reconstruction_results = reconstruction_predictions(data_root, metadata, reconstruction, num_reconstruction_samples, reconstruction_iterator)

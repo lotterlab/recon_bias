@@ -121,9 +121,9 @@ def main():
 
     # Model
     if network_type == 'ResNet18':
-        network = ResNetClassifierNetwork(num_classes=model.target_size)
+        network = ResNetClassifierNetwork(num_classes=model.num_classes)
     elif network_type == 'ResNet50':
-        network = ResNetClassifierNetwork(num_classes=model.target_size, resnet_version='resnet50')
+        network = ResNetClassifierNetwork(num_classes=model.num_classes, resnet_version='resnet50')
     else:
         raise ValueError(f"Unknown network type: {network_type}")
 
