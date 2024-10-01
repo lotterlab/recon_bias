@@ -13,6 +13,3 @@ pathology: ["edema","non_enhancing"]
 classifier_type: 'TTypeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
-
-#bin_size: 250
-#eps: 1e-8

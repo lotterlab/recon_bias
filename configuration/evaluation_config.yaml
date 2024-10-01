@@ -13,7 +13,7 @@ reconstruction:
     - network: "UNet"
       model_path: "./output/unet-test_20240925_204357/checkpoints/unet-test_20240925_204357_epoch_100.pth"
 classifiers:
-  num_samples: 100
+  num_samples: 1000
   lower_slice: 60
   upper_slice: 130
   type: "T2"

@@ -1,15 +1,20 @@
 output_dir: './output'
-output_name: 'tgrade_test'
+output_name: 'os'
 save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
-batch_size: 16
+batch_size: 10
 early_stopping_patience: 5
+num_train_samples: 10
+num_val_samples: 10
 
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
+classifier_type: 'NLLSurvClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
+
+#bins: 4
+#eps: 1e-8

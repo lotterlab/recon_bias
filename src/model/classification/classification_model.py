@@ -7,7 +7,10 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 from ..model_wrapper import ModelWrapper
-
+from sklearn.metrics import roc_auc_score
+from lifelines.utils import concordance_index
+from src.utils.delong import delong_roc_test
+import numpy as np
 
 class ClassifierModel(ModelWrapper):
     """
@@ -52,6 +55,7 @@ class ClassifierModel(ModelWrapper):
         """
         pass
 
+    # TODO could go
     @abstractmethod 
     def accumulation_function(self, results):
         pass
@@ -67,6 +71,10 @@ class ClassifierModel(ModelWrapper):
         with open(path + ".txt", "w") as f:
             f.write("Ground truth: " + str(y_transformed.cpu().numpy()) + "\n")
             f.write("Predictions: " + str(y_pred.cpu().numpy()) + "\n")
+
+    @abstractmethod
+    def significance(self, gt, pred, recon): 
+        pass
 
 
 class TTypeBCEClassifier(ClassifierModel):
@@ -115,17 +123,27 @@ class TTypeBCEClassifier(ClassifierModel):
         return (results == 1).mean() * 100
 
     def performance_metric(self, x, y):
-        preds = self.classification_criteria(x)
-        transformed_labels = self.target_transformation(y)
-        return torch.sum(preds == transformed_labels) 
+        # Check if both classes (0 and 1) are present
+        if len(np.unique(y)) == 1:
+            print("Warning: Only one class present in y_true. ROC AUC score is not defined.")
+            return None  # or return a default value like 0.5 if preferred
+        return roc_auc_score(y, x)
 
     @property
     def performance_metric_name(self):
-        return "Accuracy"
+        return "AUROC"
 
     def final_activation(self, logits): 
         logits = logits.squeeze()
         return torch.sigmoid(logits)
+    
+    def significance(self, gt, pred, recon):
+        p_value = delong_roc_test(gt, pred, recon)
+        return p_value
+    
+    @property
+    def performance_metric_value(self):
+        "score"
 
 
 class TGradeBCEClassifier(ClassifierModel):
@@ -178,30 +196,41 @@ class TGradeBCEClassifier(ClassifierModel):
         """
         return (results == 1).mean() * 100
     
-    def performance_metric(self, x, y):
-        preds = self.classification_criteria(x)
-        transformed_labels = self.target_transformation(y)
-        return torch.sum(preds == transformed_labels) 
-
     @property
     def performance_metric_name(self):
-        return "Accuracy"
+        return "AUROC"
+
+    def performance_metric(self, x, y):
+        # Check if both classes (0 and 1) are present
+        if len(np.unique(y)) == 1:
+            print("Warning: Only one class present in y_true. ROC AUC score is not defined.")
+            return None  # or return a default value like 0.5 if preferred
+        return roc_auc_score(y, x)
 
     def final_activation(self, logits): 
         logits = logits.squeeze()
         return torch.sigmoid(logits)
 
+    def significance(self, gt, pred, recon):
+        p_value = delong_roc_test(gt, pred, recon)
+        return p_value
+    
+    @property
+    def performance_metric_value(self):
+        "score"
+
 
 class NLLSurvClassifier(ClassifierModel):
 
-    def __init__(self, bin_size=1000, eps=1e-8):
+    def __init__(self, bins, bin_size, eps=1e-8):
         super().__init__()
+        self.bins = bins
         self.bin_size = bin_size
         self.eps = eps
 
     @property
     def num_classes(self):
-        return self.bin_size
+        return self.bins
 
     @property
     def name(self):
@@ -239,7 +268,7 @@ class NLLSurvClassifier(ClassifierModel):
         return loss.mean()
 
     def target_transformation(self, labels):
-        target_labels = (labels[:, 5].clone() // self.bin_size).long()
+        target_labels = (np.min(labels[:, 5].clone() // self.bin_size), self.bins).long()
         return target_labels
 
     def classification_criteria(self, logits):
@@ -258,15 +287,46 @@ class NLLSurvClassifier(ClassifierModel):
         """
         return results.mean()
     
-    def performance_metric(self, x, y):
-        preds = self.classification_criteria(x)
-        transformed_labels = self.target_transformation(y)
-        return torch.sum(preds == transformed_labels)
-
     @property
     def performance_metric_name(self):
-        return "Accuracy"
+        return "C-Index"
     
+    def performance_metric(self, x, y):
+        x = x.detach().numpy()
+        y = y.detach().numpy()
+        x = x.squeeze()
+        y = y.squeeze() 
+        print(x.shape, y.shape)
+        return concordance_index(y, x)
+
     def final_activation(self, logits):
         logits = logits.squeeze()
         return torch.softmax(logits, dim=1)
+
+    def significance(self, gt, pred, recon):
+        observed_diff = concordance_index(gt, pred) - concordance_index(gt, recon)
+    
+        n = len(gt)
+        boot_diffs = []
+        
+        for _ in range(1000):
+            # Create a bootstrap sample with replacement
+            indices = np.random.choice(np.arange(n), size=n, replace=True)
+            y_true_boot = np.array(gt)[indices]
+            y_pred1_boot = np.array(pred)[indices]
+            y_pred2_boot = np.array(recon)[indices]
+            
+            # Calculate C-index difference for the bootstrap sample
+            boot_diff = concordance_index(y_true_boot, y_pred1_boot) - concordance_index(y_true_boot, y_pred2_boot)
+            boot_diffs.append(boot_diff)
+        
+        boot_diffs = np.array(boot_diffs)
+        
+        # Calculate the p-value (two-sided test)
+        p_value = np.mean(np.abs(boot_diffs) >= np.abs(observed_diff))
+        
+        return observed_diff, p_value
+
+    @property
+    def performance_metric_value(self):
+        "prediction"

@@ -13,7 +13,7 @@ from scipy import stats
 
 # Define helper functions for percentage difference and t-test
 
-def significance_test(col1, col2, test_type='auto'):
+def significance_test(gt, col1, col2, test_type='auto'):
     """
     Calculate the statistical significance (p-value) between two columns of data.
     
@@ -140,7 +140,7 @@ def get_age_bins(df):
 
     return adjusted_bins, adjusted_labels
 
-def calculate_significance(grouped_df, classifier, groups, metric, columns):
+def apply_function_to_groups(grouped_df, classifier, groups, metric, columns, func):
     """Calculate the significance between the GT and prediction/reconstruction values."""
     results = []
 
@@ -152,11 +152,12 @@ def calculate_significance(grouped_df, classifier, groups, metric, columns):
     for group_keys, group in grouped_df:
 
         for (col1, col1_name, col2, col2_name) in columns: 
+            gt = group[f"{classifier['name']}_gt{appendix}"]
             column1 = group[f"{classifier['name']}_{col1}{appendix}"]
             column2 = group[f"{classifier['name']}_{col2}{appendix}"]
 
             # Calculate significance between the two columns
-            significance = significance_test(column1, column2) 
+            result = func(gt, column1, column2) 
 
             # Append the results
             if isinstance(group_keys, tuple):
@@ -167,26 +168,19 @@ def calculate_significance(grouped_df, classifier, groups, metric, columns):
             results.append({
                 **group_info,  # Add the group info (sex, age_bin, etc.)
                 'metric': f"{col1_name} - {col2_name}",
-                'value': significance,
+                'value': result,
             })
 
-    return results
+    metrics_df = pd.DataFrame(results)
 
-def aggregate_predictions(df, classifier, groups, metric, age_bins, age_labels): 
-    
-    # Create a copy to avoid modifying original DataFrame
-    df = df.copy()
-    
-    # Categorize 'age' into bins
-    df['age_bin'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=True)
-    
-    # Group by 'sex' and 'age_bin'
-    grouped = df.groupby(groups, observed=False)
+    return metrics_df
 
+def aggregate_predictions(grouped_df, classifier, groups, metric, age_bins, age_labels): 
+    
     results = []
 
     # Assume `grouping_cols` is a list like ['sex', 'age_bin']
-    for group_keys, group in df.groupby(groups, observed=False):
+    for group_keys, group in grouped_df:
         # Copy the group
         group_copy = group.copy()
         
@@ -238,34 +232,44 @@ def aggregate_predictions(df, classifier, groups, metric, age_bins, age_labels):
     # Create the final DataFrame
     metrics_df = pd.DataFrame(results)
 
-    return metrics_df, grouped
+    return metrics_df
 
 
 def classifier_evaluation(df, classifiers, output_dir):
     """Evaluate the classifier predictions and generate visualizations."""
     age_bins, age_labels = get_age_bins(df)
 
+    # Categorize 'age' into bins
+    df['age_bin'] = pd.cut(df['age'], bins=age_bins, labels=age_labels, right=True)
+    
+    # Group by 'sex' and 'age_bin'
+    grouped_df = df.groupby(["sex", "age_bin"], observed=False)
+
     for classifier in classifiers:
         classifier_name = classifier["name"]
         # Classifier predictions with significance
-        metrics, groups = aggregate_predictions(df, classifier, ["sex", "age_bin"], "prediction", age_bins, age_labels)
+        metrics = aggregate_predictions(grouped_df, classifier, ["sex", "age_bin"], "prediction", age_bins, age_labels)
         grouped_bar_chart(metrics, 'sex', 'Sex', 'value', 'Classifier True Predictions', 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} Predictions", output_dir, f"{classifier_name}_predictions.png")
 
-        significance_results = calculate_significance(groups, classifier, ["sex", "age_bin"], "prediction", [("gt", "GT", "pred", "Classifier on GT"), ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"), ("gt", "GT", "recon", "Classifier on Reconstruction")])
+        significance_results = apply_function_to_groups(grouped_df, classifier, ["sex", "age_bin"], "prediction", [("gt", "GT", "pred", "Classifier on GT"), ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"), ("gt", "GT", "recon", "Classifier on Reconstruction")], significance_test)
         grouped_bar_chart(significance_results, 'sex', 'Sex', 'value', 'Classifier Predictions Significance', 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} Predictions Significance", output_dir, f"{classifier_name}_predictions_significance.png")
 
         # Classifier score with significance
-        metrics, groups = aggregate_predictions(df, classifier, ["sex", "age_bin"], "score", age_bins, age_labels)
+        metrics = aggregate_predictions(grouped_df, classifier, ["sex", "age_bin"], "score", age_bins, age_labels)
         grouped_bar_chart(metrics, 'sex', 'Sex', 'value', 'Classifier Score Predictions', 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} Score", output_dir, f"{classifier_name}_score.png")
 
-        significance_results = calculate_significance(groups, classifier, ["sex", "age_bin"], "score", [("gt", "GT", "pred", "Classifier on GT"), ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"), ("gt", "GT", "recon", "Classifier on Reconstruction")])
+        significance_results = apply_function_to_groups(grouped_df, classifier, ["sex", "age_bin"], "score", [("gt", "GT", "pred", "Classifier on GT"), ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"), ("gt", "GT", "recon", "Classifier on Reconstruction")], significance_test)
         grouped_bar_chart(significance_results, 'sex', 'Sex', 'value', 'Classifier Score Significance', 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} Score Significance", output_dir, f"{classifier_name}_score_significance.png")
         
+        # Classifier performance metrics with significance 
+        f = lambda gt, y, x: classifier["model"].performance_metric(y, x)
+        metrics = apply_function_to_groups(grouped_df, classifier, ["sex", "age_bin"], classifier["model"].performance_metric_value, [("gt", "GT", "pred", "Classifier on GT"), ("gt", "GT", "recon", "Classifier on Reconstruction")], f)
+        grouped_bar_chart(metrics, 'sex', 'Sex', 'value', f"{classifier['model'].performance_metric_name}", 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} {classifier['model'].performance_metric_name}", output_dir, f"{classifier_name}_performance.png")
+
+        significance_results = apply_function_to_groups(grouped_df, classifier, ["sex", "age_bin"], classifier["model"].performance_metric_value, [("pred", "Classifier on GT", "recon", "Classifier on Reconstruction")], classifier["model"].significance)
+        grouped_bar_chart(significance_results, 'sex', 'Sex', 'value', f"{classifier['model'].performance_metric_name} Significance", 'metric', 'Legend', "age_bin", "Age Group",{}, f"{classifier_name} {classifier['model'].performance_metric_name} Significance", output_dir, f"{classifier_name}_performance_significance.png")
 
 def reconstruction_evaluation(df, classifier, output_dir):
     """Evaluate the reconstruction predictions and generate visualizations."""
     # Evaluate the classifier predictions
-    results_df = evaluate_classifier_predictions(df, classifier, output_dir)
-    
-    # Aggregate the classifier predictions
-    aggregate_classifier_predictions(df, classifier, output_dir)
+    pass

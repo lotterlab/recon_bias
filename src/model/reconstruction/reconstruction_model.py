@@ -64,3 +64,7 @@ class ReconstructionModel(ModelWrapper):
         ax[3].axis("off")
         plt.savefig(path)
         plt.close()
+
+    @property
+    def performance_metric_value(self):
+        return "score"

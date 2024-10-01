@@ -51,6 +51,7 @@ def main():
     pathology = config.get('pathology', ["edema","non_enhancing","enhancing"])
     lower_slice = config.get('lower_slice', None)
     upper_slice = config.get('upper_slice', None)
+    bins = config.get('bins', 4)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -81,7 +82,8 @@ def main():
         type=type,
         pathology=pathology, 
         lower_slice=lower_slice,
-        upper_slice=upper_slice
+        upper_slice=upper_slice, 
+        bins=bins
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -92,7 +94,8 @@ def main():
         type=type,
         pathology=pathology, 
         lower_slice=lower_slice,
-        upper_slice=upper_slice
+        upper_slice=upper_slice, 
+        bins=bins
     )
 
     train_loader = DataLoader(
@@ -111,9 +114,9 @@ def main():
     elif classifier_type == 'TGradeBCEClassifier':
         model = TGradeBCEClassifier()
     elif classifier_type == 'NLLSurvClassifier':
-        bin_size = config.get('bin_size', 1000)
         eps = config.get('eps', 1e-8)
-        model = NLLSurvClassifier(bin_size=bin_size, eps=eps)
+        bin_size = train_dataset.bin_size
+        model = NLLSurvClassifier(bins = bins, bin_size=bin_size, eps=eps)
     else:
         raise ValueError(f"Unknown classifier type: {classifier_type}")
 

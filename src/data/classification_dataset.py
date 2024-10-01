@@ -25,7 +25,8 @@ class ClassificationDataset(Dataset):
         pathology: Optional[list] = ["edema","non_enhancing","enhancing"], 
         lower_slice = None,
         upper_slice = None, 
-        evaluation = False
+        evaluation = False, 
+        bins = 4
     ):
         """
         Initialize the MRIDataset.
@@ -47,6 +48,8 @@ class ClassificationDataset(Dataset):
         self.lower_slice = lower_slice
         self.upper_slice = upper_slice
         self.evaluation = evaluation
+        self.bins = bins
+        self.bin_size = self._get_highest_dead_os() // self.bins
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -128,6 +131,33 @@ class ClassificationDataset(Dataset):
             slices.append((slice_tensor, labels))
         
         return slices
+    
+    def _get_highest_dead_os(self):
+        # Filter by split
+        metadata = pl.scan_csv(self.data_root + "/metadata.csv")
+
+        # Filter by pathology OR
+        if self.pathology and len(self.pathology) > 0:  # Ensure pathology list is not empty
+            pathology_filter = pl.col(self.pathology[0]) == True
+            for path in self.pathology[1:]:
+                pathology_filter |= (pl.col(path) == True)
+
+            metadata = metadata.filter(pathology_filter)
+        
+        # Filter by diagnosis
+        metadata = metadata.filter(pl.col("alive") == 1)
+
+        metadata = metadata.collect()
+        
+        # Sort by age
+        metadata = metadata.sort("os")
+        
+        # Get the first row
+        row = metadata.row(len(metadata) - 1, named=True)
+        
+        os = row["os"]
+
+        return os
 
 
     

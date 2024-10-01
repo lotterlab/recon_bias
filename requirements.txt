@@ -15,3 +15,4 @@ isort
 plotly
 kaleido
 fastmri
+lifelines
