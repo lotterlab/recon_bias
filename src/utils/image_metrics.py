@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def calculate_data_range(original, predicted):
     """
     Calculate the data range between two images.

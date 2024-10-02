@@ -1,6 +1,7 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import scipy.stats
+
 
 # AUC comparison adapted from
 # https://github.com/Netflix/vmaf/
@@ -20,7 +21,7 @@ def compute_midrank(x):
         j = i
         while j < N and Z[j] == Z[i]:
             j += 1
-        T[i:j] = 0.5*(i + j - 1)
+        T[i:j] = 0.5 * (i + j - 1)
         i = j
     T2 = np.empty(N, dtype=np.float)
     # Note(kazeevn) +1 is due to Python using 0-based indexing
@@ -85,7 +86,7 @@ def calc_pvalue(aucs, sigma):
     l = np.array([[1, -1]])
     z = np.abs(np.diff(aucs)[0]) / np.sqrt(np.dot(np.dot(l, sigma), l.T)[0, 0])
     # Two-tailed p-value calculation from z-score
-    return 2 * scipy.stats.norm.sf(np.abs(z)) 
+    return 2 * scipy.stats.norm.sf(np.abs(z))
 
 
 def compute_ground_truth_statistics(ground_truth):
@@ -105,7 +106,9 @@ def delong_roc_variance(ground_truth, predictions):
     order, label_1_count = compute_ground_truth_statistics(ground_truth)
     predictions_sorted_transposed = predictions[np.newaxis, order]
     aucs, delongcov = fastDeLong(predictions_sorted_transposed, label_1_count)
-    assert len(aucs) == 1, "There is a bug in the code, please forward this to the developers"
+    assert (
+        len(aucs) == 1
+    ), "There is a bug in the code, please forward this to the developers"
     return aucs[0], delongcov
 
 
@@ -121,14 +124,18 @@ def delong_roc_test(ground_truth, predictions_one, predictions_two):
     """
     # Check if both classes (0 and 1) are present
     if len(np.unique(ground_truth)) == 1:
-        print("Warning: Only one class present in y_true. ROC AUC score is not defined. DeLong test is not applicable.")
+        print(
+            "Warning: Only one class present in y_true. ROC AUC score is not defined. DeLong test is not applicable."
+        )
         return 1  # or return a default value like 0.5 if preferred
-    
+
     if np.sum(ground_truth == 1) < 2 or np.sum(ground_truth == 0) < 2:
         print("Warning: Not enough data to compute covariance matrix reliably.")
         return 1  # or return a default value
-    
+
     order, label_1_count = compute_ground_truth_statistics(ground_truth)
-    predictions_sorted_transposed = np.vstack((predictions_one, predictions_two))[:, order]
+    predictions_sorted_transposed = np.vstack((predictions_one, predictions_two))[
+        :, order
+    ]
     aucs, delongcov = fastDeLong(predictions_sorted_transposed, label_1_count)
     return calc_pvalue(aucs, delongcov)

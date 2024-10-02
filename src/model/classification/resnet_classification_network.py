@@ -4,12 +4,13 @@ from torch import nn
 from torchvision.models import (ResNet18_Weights, ResNet50_Weights, resnet18,
                                 resnet50)
 
+
 class ResNetClassifierNetwork(nn.Module):
-    def __init__(self, num_classes: int, resnet_version='resnet18'):
+    def __init__(self, num_classes: int, resnet_version="resnet18"):
         super().__init__()
-        if resnet_version == 'resnet18':
+        if resnet_version == "resnet18":
             self.classifier = resnet18(weights=ResNet18_Weights.DEFAULT)
-        elif resnet_version == 'resnet50':
+        elif resnet_version == "resnet50":
             self.classifier = resnet50(weights=ResNet50_Weights.DEFAULT)
         else:
             raise ValueError(f"Unknown ResNet version: {resnet_version}")

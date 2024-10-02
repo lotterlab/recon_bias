@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 
+
 class ModelWrapper(ABC, nn.Module):
     """
     Classifier base class.
@@ -26,8 +27,8 @@ class ModelWrapper(ABC, nn.Module):
 
     @abstractmethod
     def target_transformation(self, y):
-        """Transform the labels to fit the model output. 
-        
+        """Transform the labels to fit the model output.
+
         Args:
             y: target
         Returns:
@@ -39,7 +40,7 @@ class ModelWrapper(ABC, nn.Module):
     def criterion(self, x, y):
         """
         Loss function.
-        
+
         Args:
             x: input
             y: target
@@ -87,20 +88,6 @@ class ModelWrapper(ABC, nn.Module):
         pass
 
     @abstractmethod
-    def significance(self, gt, pred, recon): 
-        """
-        Calculates the p value for the performance metric.
-
-        Args:
-            gt: ground truth
-            pred: prediction
-            recon: reconstruction
-        Returns:
-            p value
-        """
-        pass
-
-    @abstractmethod
     def save_snapshot(self, x, y, y_pred, path, device, epoch):
         """
         Save a snapshot of the model output.
@@ -112,7 +99,7 @@ class ModelWrapper(ABC, nn.Module):
         """
         pass
 
-    @property 
+    @property
     @abstractmethod
     def evaluation_groups(self):
         """Defines the subgroups for the evaluation phase."""

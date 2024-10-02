@@ -2,15 +2,16 @@
 Classifier wrappers for both training and evaluation.
 """
 
-from abc import ABC, abstractmethod
 
-import torch
-import torch.nn as nn
-from ..model_wrapper import ModelWrapper
-from skimage.metrics import peak_signal_noise_ratio as psnr
-from src.utils.image_metrics import calculate_data_range
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
+import torch.nn as nn
+from skimage.metrics import peak_signal_noise_ratio as psnr
+
+from src.utils.image_metrics import calculate_data_range
+
+from ..model_wrapper import ModelWrapper
 
 
 class ReconstructionModel(ModelWrapper):
@@ -25,7 +26,7 @@ class ReconstructionModel(ModelWrapper):
     @property
     def name(self):
         return "ReconstructionModel"
-    
+
     def target_transformation(self, y):
         return y
 
@@ -34,18 +35,18 @@ class ReconstructionModel(ModelWrapper):
 
     def evaluation_performance_metric(self, x, y):
         return torch.tensor(0.0)
-    
+
     def epoch_performance_metric(self, x, y):
-        return torch.tensor(0.0)
+        return torch.tensor(0.0), 1
 
     @property
     def performance_metric_name(self):
         return "n/a"
-    
+
     @property
     def performance_metric_input_value(self):
         return "prediction"
-    
+
     def save_snapshot(self, x, y, y_pred, path, device, epoch):
         # save image next to each other
         plt.clf()

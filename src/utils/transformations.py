@@ -1,5 +1,6 @@
 import torch
 
+
 def min_max_slice_normalization(scan: torch.Tensor) -> torch.Tensor:
     scan_min = scan.min()
     scan_max = scan.max()

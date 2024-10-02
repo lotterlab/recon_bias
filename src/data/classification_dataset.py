@@ -2,13 +2,13 @@ import os
 import pathlib
 from typing import Callable, Optional
 
+import nibabel as nib
 import numpy as np
 import polars as pl
 import torch
 from torch.utils.data import Dataset
-import nibabel as nib
 
-from src.utils.labels import diagnosis_map, sex_map, extract_labels_from_row
+from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
 
 
 class ClassificationDataset(Dataset):
@@ -22,12 +22,12 @@ class ClassificationDataset(Dataset):
         seed: Optional[int] = 31415,
         split: Optional[str] = "train",
         type: Optional[str] = "T2",
-        pathology: Optional[list] = ["edema","non_enhancing","enhancing"], 
-        lower_slice = None,
-        upper_slice = None, 
-        evaluation = False, 
-        age_bins = [0, 3, 18, 42, 67, 96],
-        os_bins = 4
+        pathology: Optional[list] = ["edema", "non_enhancing", "enhancing"],
+        lower_slice=None,
+        upper_slice=None,
+        evaluation=False,
+        age_bins=[0, 3, 18, 42, 67, 96],
+        os_bins=4,
     ):
         """
         Initialize the MRIDataset.
@@ -66,10 +66,12 @@ class ClassificationDataset(Dataset):
         self.metadata = self.metadata.filter(pl.col("type") == self.type)
 
         # Filter by pathology OR
-        if self.pathology and len(self.pathology) > 0:  # Ensure pathology list is not empty
+        if (
+            self.pathology and len(self.pathology) > 0
+        ):  # Ensure pathology list is not empty
             pathology_filter = pl.col(self.pathology[0]) == True
             for path in self.pathology[1:]:
-                pathology_filter |= (pl.col(path) == True)
+                pathology_filter |= pl.col(path) == True
 
             self.metadata = self.metadata.filter(pathology_filter)
 
@@ -85,7 +87,7 @@ class ClassificationDataset(Dataset):
             )
         else:
             self.metadata = self.metadata.collect()
-        
+
     def __len__(self):
         return len(self.metadata)
 
@@ -96,7 +98,7 @@ class ClassificationDataset(Dataset):
 
     def _get_item_from_row(self, row):
         nifti_img = nib.load(self.data_root + "/" + row["file_path"])
-    
+
         # Extract the image data as a numpy array
         scan = nifti_img.get_fdata()
         slice = scan[:, :, row["slice_id"]]
@@ -113,9 +115,11 @@ class ClassificationDataset(Dataset):
     def get_random_sample(self):
         idx = np.random.randint(0, len(self.metadata))
         return self.__getitem__(idx)
-    
-    def get_patient_data(self, patient_id): 
-        patient_slices_metadata = self.metadata.filter(pl.col("patient_id") == patient_id)
+
+    def get_patient_data(self, patient_id):
+        patient_slices_metadata = self.metadata.filter(
+            pl.col("patient_id") == patient_id
+        )
         patient_slices_metadata = patient_slices_metadata.sort("slice_id")
 
         # If no slices found, raise an error or return empty
@@ -127,40 +131,38 @@ class ClassificationDataset(Dataset):
         slices = []
         for row_idx in range(len(patient_slices_metadata)):
             row = patient_slices_metadata.row(row_idx, named=True)
-            
+
             # Load the slice for this row directly
             slice_tensor, labels = self._get_item_from_row(row)
             slices.append((slice_tensor, labels))
-        
+
         return slices
-    
+
     def _get_highest_dead_os(self):
         # Filter by split
         metadata = pl.scan_csv(self.data_root + "/metadata.csv")
 
         # Filter by pathology OR
-        if self.pathology and len(self.pathology) > 0:  # Ensure pathology list is not empty
+        if (
+            self.pathology and len(self.pathology) > 0
+        ):  # Ensure pathology list is not empty
             pathology_filter = pl.col(self.pathology[0]) == True
             for path in self.pathology[1:]:
-                pathology_filter |= (pl.col(path) == True)
+                pathology_filter |= pl.col(path) == True
 
             metadata = metadata.filter(pathology_filter)
-        
+
         # Filter by diagnosis
         metadata = metadata.filter(pl.col("alive") == 1)
 
         metadata = metadata.collect()
-        
+
         # Sort by age
         metadata = metadata.sort("os")
-        
+
         # Get the first row
         row = metadata.row(len(metadata) - 1, named=True)
-        
+
         os = row["os"]
 
         return os
-
-
-    
-

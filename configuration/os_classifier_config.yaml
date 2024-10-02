@@ -1,18 +1,19 @@
 output_dir: './output'
-output_name: 'os-18'
+output_name: 'os'
 save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
 batch_size: 16
-early_stopping_patience: 10
-#num_train_samples: 32
-#num_val_samples: 32
+early_stopping_patience: 5
 
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-classifier_type: 'NLLSurvClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
+lower_slice: 60
+upper_slice: 130
+
+classifier_type: 'NLLSurvClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
 

@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'ttype'
+output_name: 'gender'
 save_interval: 1
 
 num_epochs: 20
@@ -13,6 +13,6 @@ pathology: ["edema","non_enhancing"]
 lower_slice: 60
 upper_slice: 130
 
-classifier_type: 'TTypeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
+classifier_type: 'GenderBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415

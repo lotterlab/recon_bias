@@ -10,6 +10,9 @@ early_stopping_patience: 5
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
+lower_slice: 60
+upper_slice: 130
+
+classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415

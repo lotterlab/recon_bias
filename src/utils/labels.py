@@ -1,5 +1,5 @@
-import torch
 import pandas as pd
+import torch
 
 sex_map = {"M": 0, "F": 1}
 diagnosis_map = {
@@ -8,6 +8,7 @@ diagnosis_map = {
     "Astrocytoma, IDH-mutant": 2,
     "Glioblastoma, IDH-wildtype": 3,
 }
+
 
 def extract_labels_from_row(row, age_bins):
     sex = torch.tensor(sex_map[row["sex"]], dtype=torch.int64)
@@ -20,7 +21,9 @@ def extract_labels_from_row(row, age_bins):
     censor = torch.tensor(-1 * (row["alive"] - 1), dtype=torch.int64)
     os = torch.tensor(row["os"], dtype=torch.float64)
     age_labels = list(range(0, len(age_bins) - 1))
-    age_bucket = torch.tensor(pd.cut([row["age_at_mri"]], bins=age_bins, labels=age_labels, right=False))
+    age_bucket = torch.tensor(
+        pd.cut([row["age_at_mri"]], bins=age_bins, labels=age_labels, right=False)
+    )
     labels = torch.stack([sex, age, cns, diagnosis, censor, os, age_bucket[0]])
 
     return labels

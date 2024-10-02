@@ -2,14 +2,12 @@ output_dir: './output'
 output_name: 'vgg'
 save_interval: 1
 
-num_epochs: 100
+num_epochs: 20
 learning_rate: 0.0001
-batch_size: 10
+batch_size: 8
 
 data_root: '../../data/UCSF-PDGM'
 type: 'T2'
-num_val_samples: 10
-num_train_samples: 1000
 lower_slice: 60
 upper_slice: 130
 

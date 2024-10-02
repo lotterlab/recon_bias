@@ -1,19 +1,20 @@
 import argparse
-import yaml
 import datetime
 import os
+
 import torch
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
+import yaml
 from torch import nn
+from torch.utils.data import DataLoader
 
 # Import your dataset, models, and trainer
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.vgg import get_configs, VGGReconstructionNetwork
+from src.model.reconstruction.unet import UNet
+from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
-from src.model.reconstruction.unet import UNet
 
 
 def main():
@@ -32,24 +33,24 @@ def main():
         config = yaml.safe_load(f)
 
     # Extract parameters from the configuration
-    output_dir = config['output_dir']
-    output_name = config['output_name']
-    num_epochs = config['num_epochs']
-    learning_rate = config['learning_rate']
-    batch_size = config['batch_size']
-    num_train_samples = config.get('num_train_samples', None)
-    num_val_samples = config.get('num_val_samples', None)
-    network_type = config.get('network_type', 'VGG')
-    network_path = config.get('network_path', None)
-    data_root = config['data_root']
-    seed = config.get('seed', 31415)
-    save_interval = config.get('save_interval', 1)
-    early_stopping_patience = config.get('early_stopping_patience', None)
-    type = config.get('type', 'T2') 
-    pathology = config.get('pathology', None)
-    sampling_mask = config.get('sampling_mask', 'radial')
-    lower_slice = config.get('lower_slice', None)
-    upper_slice = config.get('upper_slice', None)
+    output_dir = config["output_dir"]
+    output_name = config["output_name"]
+    num_epochs = config["num_epochs"]
+    learning_rate = config["learning_rate"]
+    batch_size = config["batch_size"]
+    num_train_samples = config.get("num_train_samples", None)
+    num_val_samples = config.get("num_val_samples", None)
+    network_type = config.get("network_type", "VGG")
+    network_path = config.get("network_path", None)
+    data_root = config["data_root"]
+    seed = config.get("seed", 31415)
+    save_interval = config.get("save_interval", 1)
+    early_stopping_patience = config.get("early_stopping_patience", None)
+    type = config.get("type", "T2")
+    pathology = config.get("pathology", None)
+    sampling_mask = config.get("sampling_mask", "radial")
+    lower_slice = config.get("lower_slice", None)
+    upper_slice = config.get("upper_slice", None)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -60,8 +61,8 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Save the configuration back into the output directory for tracking
-    config_save_path = os.path.join(output_dir, 'config.yaml')
-    with open(config_save_path, 'w') as config_file:
+    config_save_path = os.path.join(output_dir, "config.yaml")
+    with open(config_save_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
     transform = transforms.Compose(
@@ -78,10 +79,10 @@ def main():
         number_of_samples=num_train_samples,
         seed=seed,
         type=type,
-        pathology=pathology, 
-        sampling_mask=sampling_mask, 
+        pathology=pathology,
+        sampling_mask=sampling_mask,
         lower_slice=lower_slice,
-        upper_slice=upper_slice
+        upper_slice=upper_slice,
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
@@ -90,10 +91,10 @@ def main():
         number_of_samples=num_val_samples,
         seed=seed,
         type=type,
-        pathology=pathology, 
-        sampling_mask=sampling_mask, 
+        pathology=pathology,
+        sampling_mask=sampling_mask,
         lower_slice=lower_slice,
-        upper_slice=upper_slice
+        upper_slice=upper_slice,
     )
 
     train_loader = DataLoader(
@@ -111,9 +112,9 @@ def main():
     model = model.to(device)
 
     # Model
-    if network_type == 'VGG':
+    if network_type == "VGG":
         network = VGGReconstructionNetwork(get_configs("vgg16"), network_path)
-    elif network_type == 'unet':
+    elif network_type == "UNet":
         network = UNet()
     else:
         raise ValueError(f"Unknown network type: {network_type}")

@@ -1,23 +1,24 @@
-import pandas as pd
-import os
-import argparse
-import yaml
 from typing import List, Optional
+
 import numpy as np
+import pandas as pd
 import torch
-import datetime
+import yaml
+
 from src.utils.labels import extract_labels_from_row
+
 
 def majority_voting(predictions: List[int]) -> int:
     """Aggregate predictions via majority voting."""
     return max(set(predictions), key=predictions.count)
 
+
 def process_patient_data(
-    patient_info, 
+    patient_info,
     patient_classification_data,
     patient_reconstruction_data,
     classifiers: List[dict],
-    reconstruction_model: Optional[torch.nn.Module] = None, 
+    reconstruction_model: Optional[torch.nn.Module] = None,
 ) -> dict:
     """Process each patient, returning a dictionary of results."""
 
@@ -25,12 +26,11 @@ def process_patient_data(
         classifier_name = classifier_info["name"]
         classifier = classifier_info["model"]
 
-        patient_class_scores = [] # raw scores of the logits
-        patient_class_predictions = [] # predictions based on the raw scores
-        patient_recon_scores = [] # predictions based on the reconstruction
-        patient_recon_predictions = [] # predictions based on the reconstruction
+        patient_class_scores = []  # raw scores of the logits
+        patient_class_predictions = []  # predictions based on the raw scores
+        patient_recon_scores = []  # predictions based on the reconstruction
+        patient_recon_predictions = []  # predictions based on the reconstruction
         patient_gt = None
-
 
         for i, (x, y) in enumerate(patient_classification_data):
             with torch.no_grad():
@@ -50,7 +50,7 @@ def process_patient_data(
 
                 # Prediction on reconstruction if reconstruction model exists
                 x_recon, _ = patient_reconstruction_data[i]
-                x_recon = x_recon.unsqueeze(0) 
+                x_recon = x_recon.unsqueeze(0)
                 recon_image = reconstruction_model(x_recon)
                 recon_output = classifier(recon_image)
                 recon_score = classifier.final_activation(recon_output)
@@ -84,7 +84,7 @@ def classifier_predictions(
     metadata: pd.DataFrame,
     classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None,
-    num_samples = None
+    num_samples=None,
 ) -> List[dict]:
     """Process all patients in the metadata file."""
     patient_predictions = []
@@ -92,7 +92,7 @@ def classifier_predictions(
     index = 0
     for patient_id, patient_df in metadata.groupby("patient_id"):
         if num_samples is not None:
-            if index >= num_samples: 
+            if index >= num_samples:
                 break
         index += 1
         print(f"Processing patient {patient_id}...")
@@ -100,10 +100,20 @@ def classifier_predictions(
             "patient_id": patient_id,
             "sex": patient_df["sex"].iloc[0],
             "age": patient_df["age_at_mri"].iloc[0],
-            }
-        patient_classification_data = classification_dataset.get_patient_data(patient_id)
-        patient_reconstruction_data = reconstruction_dataset.get_patient_data(patient_id)
-        patient_prediction = process_patient_data(patient_info, patient_classification_data, patient_reconstruction_data, classifiers, reconstruction_model)
+        }
+        patient_classification_data = classification_dataset.get_patient_data(
+            patient_id
+        )
+        patient_reconstruction_data = reconstruction_dataset.get_patient_data(
+            patient_id
+        )
+        patient_prediction = process_patient_data(
+            patient_info,
+            patient_classification_data,
+            patient_reconstruction_data,
+            classifiers,
+            reconstruction_model,
+        )
         patient_predictions.append(patient_prediction)
 
     return patient_predictions

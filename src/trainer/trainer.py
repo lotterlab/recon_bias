@@ -1,4 +1,5 @@
 import os
+
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -58,7 +59,7 @@ class Trainer:
         os.makedirs(self.snapshot_dir, exist_ok=True)
 
         # Initialize early stopping variables
-        self.best_val_loss = float('inf')
+        self.best_val_loss = float("inf")
         self.epochs_without_improvement = 0
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
@@ -76,7 +77,9 @@ class Trainer:
                 "Loss", {"Train": train_loss, "Validation": val_loss}, epoch
             )
             self.writer.add_scalars(
-                f"{self.model.performance_metric_name}", {"Train": train_metric, "Validation": val_metric}, epoch
+                f"{self.model.performance_metric_name}",
+                {"Train": train_metric, "Validation": val_metric},
+                epoch,
             )
 
             # Save checkpoint at specified intervals
@@ -87,7 +90,9 @@ class Trainer:
             # Early stopping check
             if val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
-                self.best_model_state = self.model.state_dict()  # Store the model's state_dict
+                self.best_model_state = (
+                    self.model.state_dict()
+                )  # Store the model's state_dict
                 self.best_epoch = epoch
                 self.epochs_without_improvement = 0
             else:
@@ -124,7 +129,6 @@ class Trainer:
             labels = labels.to(self.device)
 
             self.optimizer.zero_grad()
-
 
             outputs = self.model(inputs)
             loss = self.model.criterion(outputs, labels)
@@ -168,7 +172,9 @@ class Trainer:
                 loss = self.model.criterion(outputs, labels)
 
                 running_loss += loss.item() * inputs.size(0)
-                performance_metric, n = self.model.epoch_performance_metric(outputs, labels)
+                performance_metric, n = self.model.epoch_performance_metric(
+                    outputs, labels
+                )
                 running_metrics += performance_metric
                 total += n
 
@@ -176,7 +182,8 @@ class Trainer:
                 val_bar.set_postfix(
                     {
                         "Val Loss": running_loss / total,
-                        f"Val {self.model.performance_metric_name}": running_metrics / total,
+                        f"Val {self.model.performance_metric_name}": running_metrics
+                        / total,
                     }
                 )
 
@@ -184,7 +191,7 @@ class Trainer:
         epoch_metric = running_metrics / total
 
         return epoch_loss, epoch_metric
-    
+
     def save_snapshot(self, epoch):
         """
         Saves a snapshot of the model at the current epoch.
@@ -196,35 +203,33 @@ class Trainer:
         train_iter = iter(self.train_loader)
 
         # Save snapshot for training data
-        x, y = next(train_iter) 
-        if len(x.shape) > 2 and x.shape[0] > 1: 
+        x, y = next(train_iter)
+        if len(x.shape) > 2 and x.shape[0] > 1:
             x = x[0].unsqueeze(0)
             y = y[0].unsqueeze(0)
         x = x.to(self.device)
         y = y.to(self.device)
 
-        with torch.no_grad(): 
+        with torch.no_grad():
             y_pred = self.model(x)
             path = os.path.join(self.snapshot_dir, train_snapshot_name)
             self.model.save_snapshot(x, y, y_pred, path, self.device, epoch)
 
-        
         # Save snapshot for validation data
         val_snapshot_name = f"{self.output_name}_epoch_{epoch}_snapshot_val"
         val_iter = iter(self.val_loader)
 
-        x, y = next(val_iter) 
-        if len(x.shape) > 2 and x.shape[0] > 1: 
+        x, y = next(val_iter)
+        if len(x.shape) > 2 and x.shape[0] > 1:
             x = x[0].unsqueeze(0)
             y = y[0].unsqueeze(0)
         x = x.to(self.device)
         y = y.to(self.device)
 
-        with torch.no_grad(): 
+        with torch.no_grad():
             y_pred = self.model(x)
             path = os.path.join(self.snapshot_dir, val_snapshot_name)
             self.model.save_snapshot(x, y, y_pred, path, self.device, epoch)
-
 
     def save_checkpoint(self, epoch, final=False):
         """

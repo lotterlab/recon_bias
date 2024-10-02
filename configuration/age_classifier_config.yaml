@@ -6,12 +6,13 @@ num_epochs: 20
 learning_rate: 0.0001
 batch_size: 16
 early_stopping_patience: 5
-num_train_samples: 10
-num_val_samples: 10
 
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier'
+lower_slice: 60
+upper_slice: 130
+
+classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
