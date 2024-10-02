@@ -26,7 +26,8 @@ class ClassificationDataset(Dataset):
         lower_slice = None,
         upper_slice = None, 
         evaluation = False, 
-        bins = 4
+        age_bins = [0, 3, 18, 42, 67, 96],
+        os_bins = 4
     ):
         """
         Initialize the MRIDataset.
@@ -48,8 +49,9 @@ class ClassificationDataset(Dataset):
         self.lower_slice = lower_slice
         self.upper_slice = upper_slice
         self.evaluation = evaluation
-        self.bins = bins
-        self.bin_size = self._get_highest_dead_os() // self.bins
+        self.age_bins = age_bins
+        self.os_bins = os_bins
+        self.os_bin_size = self._get_highest_dead_os() // self.os_bins
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -102,7 +104,7 @@ class ClassificationDataset(Dataset):
         if self.transform:
             slice_tensor = self.transform(slice_tensor)
 
-        labels = extract_labels_from_row(row)
+        labels = extract_labels_from_row(row, self.age_bins)
 
         slice_tensor = slice_tensor.unsqueeze(0)
 

@@ -1,15 +1,17 @@
 output_dir: './output'
-output_name: 'tgrade'
+output_name: 'age'
 save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
 batch_size: 16
 early_stopping_patience: 5
+num_train_samples: 10
+num_val_samples: 10
 
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'
 pathology: ["edema","non_enhancing"]
-classifier_type: 'TGradeBCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier'
+classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415

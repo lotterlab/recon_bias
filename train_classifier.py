@@ -12,6 +12,7 @@ from src.model.classification.classification_model import (
     TGradeBCEClassifier,
     TTypeBCEClassifier,
     NLLSurvClassifier,
+    AgeCEClassifier
 )
 from src.model.classification.resnet_classification_network import ResNetClassifierNetwork
 from src.trainer.trainer import Trainer
@@ -51,7 +52,8 @@ def main():
     pathology = config.get('pathology', ["edema","non_enhancing","enhancing"])
     lower_slice = config.get('lower_slice', None)
     upper_slice = config.get('upper_slice', None)
-    bins = config.get('bins', 4)
+    os_bins = config.get('os_bins', 4)
+    age_bins = config.get('age_bins', [0, 3, 18, 42, 67, 96])
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -83,7 +85,8 @@ def main():
         pathology=pathology, 
         lower_slice=lower_slice,
         upper_slice=upper_slice, 
-        bins=bins
+        age_bins=age_bins,
+        os_bins=os_bins
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -95,7 +98,8 @@ def main():
         pathology=pathology, 
         lower_slice=lower_slice,
         upper_slice=upper_slice, 
-        bins=bins
+        age_bins=age_bins,
+        os_bins=os_bins
     )
 
     train_loader = DataLoader(
@@ -115,8 +119,10 @@ def main():
         model = TGradeBCEClassifier()
     elif classifier_type == 'NLLSurvClassifier':
         eps = config.get('eps', 1e-8)
-        bin_size = train_dataset.bin_size
-        model = NLLSurvClassifier(bins = bins, bin_size=bin_size, eps=eps)
+        bin_size = train_dataset.os_bin_size
+        model = NLLSurvClassifier(bins = os_bins, bin_size=bin_size, eps=eps)
+    elif classifier_type == 'AgeCEClassifier':
+        model = AgeCEClassifier(age_bins=age_bins)
     else:
         raise ValueError(f"Unknown classifier type: {classifier_type}")
 

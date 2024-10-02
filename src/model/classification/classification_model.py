@@ -30,15 +30,9 @@ class ClassifierModel(ModelWrapper):
     @property
     @abstractmethod
     def num_classes(self):
-        pass
-
-    @property
-    @abstractmethod
-    def key(self):
-        pass
-
-    @abstractmethod
-    def target_transformation(self, labels):
+        """
+        Number of classes for the classification.
+        """
         pass
 
     @abstractmethod
@@ -55,11 +49,6 @@ class ClassifierModel(ModelWrapper):
         """
         pass
 
-    # TODO could go
-    @abstractmethod 
-    def accumulation_function(self, results):
-        pass
-
     def save_snapshot(self, x, y, y_pred, path, device, epoch):
         y_transformed = self.target_transformation(y)
         y_transformed = y_transformed.squeeze()
@@ -72,84 +61,76 @@ class ClassifierModel(ModelWrapper):
             f.write("Ground truth: " + str(y_transformed.cpu().numpy()) + "\n")
             f.write("Predictions: " + str(y_pred.cpu().numpy()) + "\n")
 
-    @abstractmethod
-    def significance(self, gt, pred, recon): 
-        pass
-
 
 class TTypeBCEClassifier(ClassifierModel):
+    """
+    Classifier for tumor type prediction using binary cross entropy loss.
+    """
+
     def __init__(self):
         super().__init__()
         self.bce_loss = nn.BCEWithLogitsLoss()
-
-    @property
-    def num_classes(self):
-        return 1
 
     @property
     def name(self):
         return "TType"
 
-    @property
-    def key(self):
-        return "Final pathologic diagnosis (WHO 2021)"
-
     def criterion(self, logits, labels):
         transformed_labels = self.target_transformation(labels)
         logits = logits.squeeze(1)
         loss = self.bce_loss(logits, transformed_labels)
         return loss
 
-    def target_transformation(self, labels):
-        target_labels = labels[:, 3].clone()
+    def target_transformation(self, y):
+        target_labels = y[:, 3].clone()
         target_labels[target_labels < 3] = 0
         target_labels[target_labels == 3] = 1
         return target_labels
 
-    def classification_criteria(self, logits):
-        logits = logits.squeeze()
-        return torch.sigmoid(logits) > 0.5
-
-    def accumulation_function(self, results):
-        """
-        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
-        
-        Args:
-            results (pd.Series): The series of predicted or ground truth values.
-        
-        Returns:
-            float: The percentage of class 1 (diagnosis = 3).
-        """
-        return (results == 1).mean() * 100
-
-    def performance_metric(self, x, y):
+    def evaluation_performance_metric(self, x, y):
         # Check if both classes (0 and 1) are present
+        x = x.detach().numpy()
+        y = y.detach().numpy()
         if len(np.unique(y)) == 1:
             print("Warning: Only one class present in y_true. ROC AUC score is not defined.")
-            return None  # or return a default value like 0.5 if preferred
+            return 0  # or return a default value like 0.5 if preferred
         return roc_auc_score(y, x)
+    
+    def epoch_performance_metric(self, x, y):
+        target_transform = self.target_transformation(y)
+        return self.evaluation_performance_metric(x, target_transform), 1
 
     @property
     def performance_metric_name(self):
         return "AUROC"
-
-    def final_activation(self, logits): 
-        logits = logits.squeeze()
-        return torch.sigmoid(logits)
+    
+    @property
+    def performance_metric_input_value(self):
+        "score"
     
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
+    def evaluation_groups(self):
+        return ["age", "sex"]
     
     @property
-    def performance_metric_value(self):
-        "score"
+    def num_classes(self):
+        return 1
+    
+    def classification_criteria(self, logits):
+        logits = logits.squeeze()
+        return torch.sigmoid(logits) > 0.5
+    
+    def final_activation(self, logits): 
+        logits = logits.squeeze()
+        return torch.sigmoid(logits)
 
 
 class TGradeBCEClassifier(ClassifierModel):
     """
-    Calculates the binary cross entropy loss for the tumor types
-
+    Classifier for tumor grade prediction using binary cross entropy loss.
     """
 
     def __init__(self):
@@ -157,16 +138,8 @@ class TGradeBCEClassifier(ClassifierModel):
         self.bce_loss = nn.BCEWithLogitsLoss()
 
     @property
-    def num_classes(self):
-        return 1
-
-    @property
     def name(self):
         return "TGrade"
-
-    @property
-    def key(self):
-        return "WHO CNS Grade"
 
     def criterion(self, logits, labels):
         transformed_labels = self.target_transformation(labels)
@@ -174,53 +147,56 @@ class TGradeBCEClassifier(ClassifierModel):
         loss = self.bce_loss(logits, transformed_labels)
         return loss
 
-    def target_transformation(self, labels):
-        target_labels = labels[:, 2].clone()
+    def target_transformation(self, y):
+        target_labels = y[:, 2].clone()
         target_labels[target_labels < 4] = 0
         target_labels[target_labels == 4] = 1
         return target_labels
-
-    def classification_criteria(self, logits):
-        logits = logits.squeeze()
-        return torch.sigmoid(logits) > 0.5
     
-    def accumulation_function(self, results):
-        """
-        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
-        
-        Args:
-            results (pd.Series): The series of predicted or ground truth values.
-        
-        Returns:
-            float: The percentage of class 1 (diagnosis = 3).
-        """
-        return (results == 1).mean() * 100
+    def evaluation_performance_metric(self, x, y):
+        x = x.detach().numpy()
+        y = y.detach().numpy()
+        # Check if both classes (0 and 1) are present
+        if len(np.unique(y)) == 1:
+            print("Warning: Only one class present in y_true. ROC AUC score is not defined.")
+            return 0  # or return a default value like 0.5 if preferred
+        return roc_auc_score(y, x)
+    
+    def epoch_performance_metric(self, x, y):
+        target_transform = self.target_transformation(y)
+        return self.evaluation_performance_metric(x, target_transform), 1
     
     @property
     def performance_metric_name(self):
         return "AUROC"
-
-    def performance_metric(self, x, y):
-        # Check if both classes (0 and 1) are present
-        if len(np.unique(y)) == 1:
-            print("Warning: Only one class present in y_true. ROC AUC score is not defined.")
-            return None  # or return a default value like 0.5 if preferred
-        return roc_auc_score(y, x)
-
-    def final_activation(self, logits): 
-        logits = logits.squeeze()
-        return torch.sigmoid(logits)
+    
+    @property
+    def performance_metric_input_value(self):
+        "score"
 
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
     
+    def evaluation_groups(self):
+        return ["age", "sex"]
+    
     @property
-    def performance_metric_value(self):
-        "score"
-
+    def num_classes(self):
+        return 1
+    
+    def classification_criteria(self, logits):
+        logits = logits.squeeze()
+        return torch.sigmoid(logits) > 0.5
+    
+    def final_activation(self, logits): 
+        logits = logits.squeeze()
+        return torch.sigmoid(logits)
 
 class NLLSurvClassifier(ClassifierModel):
+    """
+    Classifier for survival prediction using negative log likelihood loss.
+    """
 
     def __init__(self, bins, bin_size, eps=1e-8):
         super().__init__()
@@ -229,22 +205,13 @@ class NLLSurvClassifier(ClassifierModel):
         self.eps = eps
 
     @property
-    def num_classes(self):
-        return self.bins
-
-    @property
     def name(self):
         return "Survival"
-
-    @property
-    def key(self):
-        return "OS"
 
     def criterion(self, logits, labels):
         # 1 alive, 0 dead
         censor = labels[:, 4]
         censor = censor.unsqueeze(1)
-        #censor = censor * -1 + 1
         os = self.target_transformation(labels)
         os = os.unsqueeze(1)
 
@@ -267,41 +234,35 @@ class NLLSurvClassifier(ClassifierModel):
 
         return loss.mean()
 
-    def target_transformation(self, labels):
-        target_labels = (np.min(labels[:, 5].clone() // self.bin_size), self.bins).long()
+    def target_transformation(self, y):
+        # extend bins to tensor with same lenght as labels 
+        bins = torch.full((y.shape[0],),self.bins - 1)
+        target_labels = (torch.min(y[:, 5].clone() // self.bin_size, bins)).long()
         return target_labels
-
-    def classification_criteria(self, logits):
-        _, preds = torch.max(logits, 1)
-        return preds
-
-    def accumulation_function(self, results):
-        """
-        Accumulates the percentage of class 1 (diagnosis = 3) in the results.
-        
-        Args:
-            results (pd.Series): The series of predicted or ground truth values.
-        
-        Returns:
-            float: The average survival bin index.
-        """
-        return results.mean()
+    
+    def evaluation_performance_metric(self, x, y):
+        if len(np.unique(y)) == 1:
+            print("Warning: Only one class present in y_true. C-Index score is not defined.")
+            return 0.5
+        x = x.detach().numpy()
+        y = y.detach().numpy()
+        x = x.squeeze()
+        y = y.squeeze() 
+        c_index = concordance_index(y, x)
+        return c_index
+    
+    def epoch_performance_metric(self, x, y):
+        target_transform = self.target_transformation(y)
+        _, preds = torch.max(x, 1)
+        return self.evaluation_performance_metric(preds, target_transform), 1
     
     @property
     def performance_metric_name(self):
         return "C-Index"
     
-    def performance_metric(self, x, y):
-        x = x.detach().numpy()
-        y = y.detach().numpy()
-        x = x.squeeze()
-        y = y.squeeze() 
-        print(x.shape, y.shape)
-        return concordance_index(y, x)
-
-    def final_activation(self, logits):
-        logits = logits.squeeze()
-        return torch.softmax(logits, dim=1)
+    @property
+    def performance_metric_input_value(self):
+        "prediction"
 
     def significance(self, gt, pred, recon):
         observed_diff = concordance_index(gt, pred) - concordance_index(gt, recon)
@@ -325,8 +286,86 @@ class NLLSurvClassifier(ClassifierModel):
         # Calculate the p-value (two-sided test)
         p_value = np.mean(np.abs(boot_diffs) >= np.abs(observed_diff))
         
-        return observed_diff, p_value
+        return p_value
+
+    def evaluation_groups(self):
+        return ["age", "sex"]
+    
+    @property
+    def num_classes(self):
+        return self.bins
+    
+    def classification_criteria(self, logits):
+        _, preds = torch.max(logits, 1)
+        return preds
+    
+    def final_activation(self, logits):
+        logits = logits.squeeze()
+        return torch.softmax(logits, dim=1)
+
+# TODO: Implement AgeCEClassifier
+class AgeCEClassifier(ClassifierModel):
+    """
+    Classifier for age prediction using cross entropy loss.
+    """
+
+    def __init__(self, age_bins):
+        super().__init__()
+        self.ce_loss = nn.CrossEntropyLoss()
+        self.age_bins = age_bins
+        self.age_labels = list(range(0, len(self.age_bins) - 1))
 
     @property
-    def performance_metric_value(self):
+    def name(self):
+        return "Age"
+    
+    def criterion(self, logits, labels):
+        transformed_labels = self.target_transformation(labels)
+        transformed_labels = transformed_labels.long()
+        logits = logits.squeeze(1)
+        loss = self.ce_loss(logits, transformed_labels)
+        return loss
+    
+    def target_transformation(self, y):
+        target_labels = y[:, 6].clone()
+        return target_labels
+    
+    def evaluation_performance_metric(self, x, y):
+        # Calculate accuracy for batch 
+        correct = (x == y).sum().item()
+        return correct / len(y)
+    
+    def epoch_performance_metric(self, x, y):
+        _, preds = torch.max(x, 1)
+        target_transform = self.target_transformation(y)
+        return self.evaluation_performance_metric(preds, target_transform), 1
+
+    @property
+    def performance_metric_name(self):
+        return "Accuracy"
+    
+    @property
+    def performance_metric_input_value(self):
         "prediction"
+    
+    def significance(self, gt, pred, recon):
+        p_value = delong_roc_test(gt, pred, recon)
+        return p_value
+
+    def evaluation_groups(self):
+        return ["sex"]
+    
+    @property
+    def num_classes(self):
+        return len(self.age_bins) - 1
+    
+    def classification_criteria(self, logits):
+        _, preds = torch.max(logits, 1)
+        return preds
+    
+    def final_activation(self, logits): 
+        logits = logits.squeeze()
+        return torch.softmax(logits, dim=1)
+    
+
+# TODO: Implement GenderBCEClassifier

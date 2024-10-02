@@ -1,13 +1,13 @@
 output_dir: './output'
-output_name: 'os'
+output_name: 'os-18'
 save_interval: 1
 
 num_epochs: 20
 learning_rate: 0.0001
-batch_size: 10
-early_stopping_patience: 5
-num_train_samples: 10
-num_val_samples: 10
+batch_size: 16
+early_stopping_patience: 10
+#num_train_samples: 32
+#num_val_samples: 32
 
 data_root: '../../data/UCSF-PDGM/'
 type: 'T2'

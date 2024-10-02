@@ -134,19 +134,19 @@ class Trainer:
             self.optimizer.step()
 
             running_loss += loss.item() * inputs.size(0)
-            running_metrics += self.model.performance_metric(outputs, labels)
-            total += labels.size(0)
+            performance_metric, n = self.model.epoch_performance_metric(outputs, labels)
+            running_metrics += performance_metric
+            total += n
 
             # Update progress bar
             train_bar.set_postfix(
                 {
                     "Loss": running_loss / total,
-                    f"{self.model.performance_metric_name}": running_metrics.double().item() / total,
+                    f"{self.model.performance_metric_name}": running_metrics / total,
                 }
             )
-
         epoch_loss = running_loss / total
-        epoch_metric = running_metrics.double() / total
+        epoch_metric = running_metrics / total
 
         return epoch_loss, epoch_metric
 
@@ -168,19 +168,20 @@ class Trainer:
                 loss = self.model.criterion(outputs, labels)
 
                 running_loss += loss.item() * inputs.size(0)
-                running_metrics += self.model.performance_metric(outputs, labels)
-                total += labels.size(0)
+                performance_metric, n = self.model.epoch_performance_metric(outputs, labels)
+                running_metrics += performance_metric
+                total += n
 
                 # Update progress bar
                 val_bar.set_postfix(
                     {
                         "Val Loss": running_loss / total,
-                        f"Val {self.model.performance_metric_name}": running_metrics.double().item() / total,
+                        f"Val {self.model.performance_metric_name}": running_metrics / total,
                     }
                 )
 
         epoch_loss = running_loss / total
-        epoch_metric = running_metrics.double() / total
+        epoch_metric = running_metrics / total
 
         return epoch_loss, epoch_metric
     

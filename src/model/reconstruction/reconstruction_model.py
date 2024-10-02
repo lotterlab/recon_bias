@@ -15,17 +15,27 @@ import numpy as np
 
 class ReconstructionModel(ModelWrapper):
     """
-    Classifier base class.
+    Reconstruction base class.
     """
 
     def __init__(self):
         super().__init__()
         self.loss = torch.nn.MSELoss()
 
+    @property
+    def name(self):
+        return "ReconstructionModel"
+    
+    def target_transformation(self, y):
+        return y
+
     def criterion(self, x, y):
         return self.loss(x, y)
 
-    def performance_metric(self, x, y):
+    def evaluation_performance_metric(self, x, y):
+        return torch.tensor(0.0)
+    
+    def epoch_performance_metric(self, x, y):
         return torch.tensor(0.0)
 
     @property
@@ -33,8 +43,8 @@ class ReconstructionModel(ModelWrapper):
         return "n/a"
     
     @property
-    def name(self):
-        return "ReconstructionModel"
+    def performance_metric_input_value(self):
+        return "prediction"
     
     def save_snapshot(self, x, y, y_pred, path, device, epoch):
         # save image next to each other
@@ -65,6 +75,5 @@ class ReconstructionModel(ModelWrapper):
         plt.savefig(path)
         plt.close()
 
-    @property
-    def performance_metric_value(self):
-        return "score"
+    def evaluation_groups(self):
+        return ["age", "sex"]
