@@ -15,12 +15,12 @@ def grouped_bar_chart(
     y_label,
     color,
     color_label,
-    facet_col,
-    facet_col_label,
     category_order,
     title,
     output_dir,
     output_name,
+    facet_col = None,
+    facet_col_label = None,
     facet_row=None,
     facet_row_label=None,
 ):
@@ -35,6 +35,9 @@ def grouped_bar_chart(
 
     if facet_row:
         labels[facet_row] = facet_row_label
+
+    if facet_col:
+        labels[facet_col] = facet_col_label
 
     # Create the bar chart
     fig = px.bar(
@@ -108,6 +111,7 @@ def apply_function_to_groups(grouped_df, classifier, groups, metric, columns, fu
         appendix = ""
 
     for group_keys, group in grouped_df:
+        print(f"Applying function for {group_keys}...")
 
         for col1, col1_name, col2, col2_name in columns:
             gt = group[f"{classifier['name']}_gt{appendix}"]
@@ -143,6 +147,7 @@ def aggregate_predictions(grouped_df, classifier, groups, metric, age_bins, age_
     # Assume `grouping_cols` is a list like ['sex', 'age_bin']
     for group_keys, group in grouped_df:
         # Copy the group
+        print(f"Aggregating predictions for {group_keys}...")
         group_copy = group.copy()
 
         # Select only 'gt', 'pred', 'recon' columns based on metric type
@@ -217,41 +222,49 @@ def classifier_evaluation(df, classifiers, output_dir):
     # Categorize 'age' into bins
     df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=True)
 
-    # Group by 'sex' and 'age_bin'
-    grouped_df = df.groupby(["sex", "age_bin"], observed=False)
-
     for classifier in classifiers:
+
+        x = classifier["model"].plot_config["x"]
+        x_label = classifier["model"].plot_config["x_label"]
+        facet_col = classifier["model"].plot_config.get("facet_col")
+        facet_col_label = classifier["model"].plot_config.get("facet_col_label")
+
+        df_copy = df.copy()
+        grouped_df = df_copy.groupby(classifier["model"].evaluation_groups, observed=False)
         classifier_name = classifier["name"]
+
+        print(f"Evaluating {classifier_name} predictions...")
         # Classifier predictions with significance
+        print("Predictions")
         metrics = aggregate_predictions(
             grouped_df,
             classifier,
-            ["sex", "age_bin"],
+            classifier["model"].evaluation_groups,
             "prediction",
             age_bins,
             age_labels,
         )
         grouped_bar_chart(
             metrics,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             "Classifier True Predictions",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} Predictions",
             output_dir,
             f"{classifier_name}_predictions.png",
+            facet_col,
+            facet_col_label,
         )
 
         f = lambda gt, y, x: hypothesis_test(y, x)
         significance_results = apply_function_to_groups(
             grouped_df,
             classifier,
-            ["sex", "age_bin"],
+            classifier["model"].evaluation_groups,
             "prediction",
             [
                 ("gt", "GT", "pred", "Classifier on GT"),
@@ -262,45 +275,46 @@ def classifier_evaluation(df, classifiers, output_dir):
         )
         grouped_bar_chart(
             significance_results,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             "Classifier Predictions Significance",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} Predictions Significance",
             output_dir,
             f"{classifier_name}_predictions_significance.png",
+            facet_col,
+            facet_col_label,
         )
 
+        print("Score")
         # Classifier score with significance
         metrics = aggregate_predictions(
-            grouped_df, classifier, ["sex", "age_bin"], "score", age_bins, age_labels
+            grouped_df, classifier, classifier["model"].evaluation_groups, "score", age_bins, age_labels
         )
         grouped_bar_chart(
             metrics,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             "Classifier Score Predictions",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} Score",
             output_dir,
             f"{classifier_name}_score.png",
+            facet_col,
+            facet_col_label,
         )
 
         f = lambda gt, y, x: hypothesis_test(y, x)
         significance_results = apply_function_to_groups(
             grouped_df,
             classifier,
-            ["sex", "age_bin"],
+            classifier["model"].evaluation_groups,
             "score",
             [
                 ("gt", "GT", "pred", "Classifier on GT"),
@@ -311,27 +325,28 @@ def classifier_evaluation(df, classifiers, output_dir):
         )
         grouped_bar_chart(
             significance_results,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             "Classifier Score Significance",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} Score Significance",
             output_dir,
             f"{classifier_name}_score_significance.png",
+            facet_col,
+            facet_col_label,
         )
 
         # Classifier performance metrics with significance
-        f = lambda gt, y, x: classifier["model"].performance_metric(y, x)
+        print("Performance")
+        f = lambda gt, y, x: classifier["model"].evaluation_performance_metric(y, x)
         metrics = apply_function_to_groups(
             grouped_df,
             classifier,
-            ["sex", "age_bin"],
-            classifier["model"].performance_metric_value,
+            classifier["model"].evaluation_groups,
+            classifier["model"].performance_metric_input_value,
             [
                 ("gt", "GT", "pred", "Classifier on GT"),
                 ("gt", "GT", "recon", "Classifier on Reconstruction"),
@@ -340,42 +355,42 @@ def classifier_evaluation(df, classifiers, output_dir):
         )
         grouped_bar_chart(
             metrics,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             f"{classifier['model'].performance_metric_name}",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} {classifier['model'].performance_metric_name}",
             output_dir,
             f"{classifier_name}_performance.png",
+            facet_col,
+            facet_col_label,
         )
 
         significance_results = apply_function_to_groups(
             grouped_df,
             classifier,
-            ["sex", "age_bin"],
-            classifier["model"].performance_metric_value,
+            classifier["model"].evaluation_groups,
+            classifier["model"].performance_metric_input_value,
             [("pred", "Classifier on GT", "recon", "Classifier on Reconstruction")],
             classifier["model"].significance,
         )
         grouped_bar_chart(
             significance_results,
-            "sex",
-            "Sex",
+            x,
+            x_label,
             "value",
             f"{classifier['model'].performance_metric_name} Significance",
             "metric",
             "Legend",
-            "age_bin",
-            "Age Group",
             {},
             f"{classifier_name} {classifier['model'].performance_metric_name} Significance",
             output_dir,
             f"{classifier_name}_performance_significance.png",
+            facet_col,
+            facet_col_label,
         )
 
 

@@ -50,6 +50,60 @@ def get_mock_data(num_patients=10):
         "TTypeBCEClassifier_recon_score": np.random.random(
             num_patients
         ),  # Random recon scores for TType (0 to 1)
+        "NLLSurvClassifier_gt": np.random.randint(
+            0, 4, num_patients
+        ),  # Random ground truth for NLLSurv (binary)
+        "NLLSurvClassifier_pred": np.random.randint(
+            0, 4, num_patients
+        ),  # Random predictions for NLLSurv (binary)
+        "NLLSurvClassifier_recon": np.random.randint(
+            0, 4, num_patients
+        ),  # Random recon predictions for NLLSurv
+        "NLLSurvClassifier_gt_score": np.random.uniform(
+            0, 4, num_patients
+        ),  # Random scores for NLLSurv (0 to 1)
+        "NLLSurvClassifier_pred_score": np.random.uniform(
+            0, 4, num_patients
+        ),  # Random scores for NLLSurv (0 to 1)
+        "NLLSurvClassifier_recon_score": np.random.uniform(
+            0, 4, num_patients
+        ),  # Random recon scores for NLLSurv (0 to 1)
+        "AgeCEClassifier_gt": np.random.randint(
+            0, 5, num_patients
+        ),  # Random ground truth for AgeCE (binary)
+        "AgeCEClassifier_pred": np.random.randint(
+            0, 5, num_patients
+        ),  # Random predictions for AgeCE (binary)
+        "AgeCEClassifier_recon": np.random.randint(
+            0, 5, num_patients
+        ),  # Random recon predictions for AgeCE
+        "AgeCEClassifier_gt_score": np.random.uniform(
+            0, 5, num_patients
+        ),  # Random scores for AgeCE (0 to 1)
+        "AgeCEClassifier_pred_score": np.random.uniform(
+            0, 5, num_patients
+        ),  # Random scores for AgeCE (0 to 1)
+        "AgeCEClassifier_recon_score": np.random.uniform(
+            0, 5, num_patients
+        ),  # Random recon scores for AgeCE (0 to 1)
+        "GenderBCEClassifier_gt": np.random.randint(
+            0, 2, num_patients
+        ),  # Random ground truth
+        "GenderBCEClassifier_pred": np.random.randint(
+            0, 2, num_patients
+        ),  # Random predictions
+        "GenderBCEClassifier_recon": np.random.randint(
+            0, 2, num_patients
+        ),  # Random recon predictions
+        "GenderBCEClassifier_gt_score": np.random.random(
+            num_patients
+        ),  # Random scores
+        "GenderBCEClassifier_pred_score": np.random.random(
+            num_patients
+        ),  # Random scores
+        "GenderBCEClassifier_recon_score": np.random.random(
+            num_patients
+        ),  # Random recon scores
     }
 
     # Convert the dictionary to a DataFrame

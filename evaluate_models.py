@@ -19,7 +19,9 @@ from src.evaluation.reconstruction_prediction import reconstruction_predictions
 from src.model.classification.classification_model import (ClassifierModel,
                                                            NLLSurvClassifier,
                                                            TGradeBCEClassifier,
-                                                           TTypeBCEClassifier)
+                                                           TTypeBCEClassifier, 
+                                                           AgeCEClassifier,
+                                                           GenderBCEClassifier)
 from src.model.classification.resnet_classification_network import \
     ResNetClassifierNetwork
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
@@ -43,9 +45,8 @@ def set_seed(seed):
 def load_metadata(metadata_path: str) -> pd.DataFrame:
     return pd.read_csv(metadata_path)
 
-
 def load_classifier(
-    classifier_type: str, network_type: str, model_path: str, device, config
+    classifier_type: str, network_type: str, model_path: str, device, config, dataset
 ) -> ClassifierModel:
     """Loads the appropriate classifier based on type and network."""
     # Classifier
@@ -54,9 +55,15 @@ def load_classifier(
     elif classifier_type == "TGradeBCEClassifier":
         model = TGradeBCEClassifier()
     elif classifier_type == "NLLSurvClassifier":
-        bin_size = config.get("bin_size", 1000)
         eps = config.get("eps", 1e-8)
-        model = NLLSurvClassifier(bin_size=bin_size, eps=eps)
+        bin_size = dataset.os_bin_size
+        os_bins = dataset.os_bins
+        model = NLLSurvClassifier(bins=os_bins, bin_size=bin_size, eps=eps)
+    elif classifier_type == "AgeCEClassifier":
+        age_bins = dataset.age_bins
+        model = AgeCEClassifier(age_bins=age_bins)
+    elif classifier_type == "GenderBCEClassifier":
+        model = GenderBCEClassifier()
     else:
         raise ValueError(f"Unknown classifier type: {classifier_type}")
 
@@ -87,7 +94,6 @@ def load_reconstruction_model(network_type, model_path, device) -> torch.nn.Modu
     model = ReconstructionModel()
     model = model.to(device)
 
-    print(f"Loading reconstruction model {network_type} from {model_path}...")
     if network_type == "VGG":
         network = VGGReconstructionNetwork(get_configs("vgg16"))
     elif network_type == "UNet":
@@ -142,17 +148,37 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     classifiers_config = config["classifiers"]
-    num_classifier_samples = None
-    lower_slice_classifier = None
-    upper_slice_classifier = None
-    pathology_classifier = None
-    type_classifier = None
-
     num_classifier_samples = classifiers_config.get("num_samples", None)
     lower_slice_classifier = classifiers_config.get("lower_slice", None)
     upper_slice_classifier = classifiers_config.get("upper_slice", None)
     pathology_classifier = classifiers_config.get("pathology", None)
     type_classifier = classifiers_config.get("type", "T2")
+    os_bins = config.get("os_bins", 4)
+    age_bins = config.get("age_bins", [0, 3, 18, 42, 67, 96])
+
+    transform = transforms.Compose(
+        [
+            min_max_slice_normalization,
+        ]
+    )
+
+    seed = config.get("seed", 42)
+
+    # Process classifiers
+    classifier_dataset = ClassificationDataset(
+        data_root=data_root,
+        transform=transform,
+        split="test",
+        number_of_samples=num_classifier_samples,
+        seed=seed,
+        type=type_classifier,
+        pathology=pathology_classifier,
+        lower_slice=lower_slice_classifier,
+        upper_slice=upper_slice_classifier,
+        age_bins=age_bins, 
+        os_bins=os_bins,
+        evaluation=True,
+    )
 
     # Initialize classifiers
     classifiers = []
@@ -161,7 +187,7 @@ def main():
         network_type = classifier_cfg["network"]
         model_path = classifier_cfg["model_path"]
         classifier = load_classifier(
-            classifier_type, network_type, model_path, device, classifier_cfg
+            classifier_type, network_type, model_path, device, classifier_cfg, classifier_dataset
         )
         classifiers.append({"model": classifier, "name": classifier_type})
 
@@ -209,28 +235,6 @@ def main():
     else:
         print("No reconstruction model specified.")
 
-    transform = transforms.Compose(
-        [
-            min_max_slice_normalization,
-        ]
-    )
-
-    seed = config.get("seed", 42)
-
-    # Process classifiers
-    classifier_dataset = ClassificationDataset(
-        data_root=data_root,
-        transform=transform,
-        split="test",
-        number_of_samples=num_classifier_samples,
-        seed=seed,
-        type=type_classifier,
-        pathology=pathology_classifier,
-        lower_slice=lower_slice_classifier,
-        upper_slice=upper_slice_classifier,
-        evaluation=True,
-    )
-
     reconstruction_dataset = ReconstructionDataset(
         data_root=data_root,
         transform=transform,
@@ -246,17 +250,19 @@ def main():
     )
 
     # Process and evaluate classification
-    # classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
+    #classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
 
     # Create DataFrame for results
-    # classifier_results_df = pd.DataFrame(classifier_results)
+    #classifier_results_df = pd.DataFrame(classifier_results)
 
     # Save results to output directory
-    # classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
+    #classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
+
+    classifier_results_df = pd.read_csv("/homes9/matteow/code/dfci/output/eval-complete_20241002_223821/eval-complete_20241002_223821_classifier_results.csv")
 
     # Evaluate predictions
     classifier_evaluation(
-        get_mock_data(num_classifier_samples), classifiers, output_path
+        classifier_results_df, classifiers, output_path
     )
 
     """

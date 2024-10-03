@@ -76,5 +76,15 @@ class ReconstructionModel(ModelWrapper):
         plt.savefig(path)
         plt.close()
 
+    @property
     def evaluation_groups(self):
         return ["age", "sex"]
+
+    @property
+    def plot_config(self):
+        return {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }

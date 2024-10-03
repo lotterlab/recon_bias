@@ -104,3 +104,9 @@ class ModelWrapper(ABC, nn.Module):
     def evaluation_groups(self):
         """Defines the subgroups for the evaluation phase."""
         pass
+
+    @property
+    @abstractmethod
+    def plot_config(self):
+        """Defines the plot configuration for the evaluation phase."""
+        pass

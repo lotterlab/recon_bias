@@ -108,8 +108,6 @@ class TTypeBCEClassifier(ClassifierModel):
 
     def evaluation_performance_metric(self, x, y):
         # Check if both classes (0 and 1) are present
-        x = x.detach().numpy()
-        y = y.detach().numpy()
         if len(np.unique(y)) == 1:
             print(
                 "Warning: Only one class present in y_true. ROC AUC score is not defined."
@@ -129,6 +127,7 @@ class TTypeBCEClassifier(ClassifierModel):
     def performance_metric_input_value(self):
         "score"
 
+    @property
     def evaluation_groups(self):
         return ["age_bin", "sex"]
 
@@ -147,6 +146,15 @@ class TTypeBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
+    @property
+    def plot_config(self):
+        return {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }
 
 
 class TGradeBCEClassifier(ClassifierModel):
@@ -175,8 +183,6 @@ class TGradeBCEClassifier(ClassifierModel):
         return target_labels
 
     def evaluation_performance_metric(self, x, y):
-        x = x.detach().numpy()
-        y = y.detach().numpy()
         # Check if both classes (0 and 1) are present
         if len(np.unique(y)) == 1:
             print(
@@ -197,6 +203,7 @@ class TGradeBCEClassifier(ClassifierModel):
     def performance_metric_input_value(self):
         "score"
 
+    @property
     def evaluation_groups(self):
         return ["age_bin", "sex"]
 
@@ -215,6 +222,15 @@ class TGradeBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
+    @property
+    def plot_config(self):
+        return {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }
 
 
 class NLLSurvClassifier(ClassifierModel):
@@ -270,14 +286,12 @@ class NLLSurvClassifier(ClassifierModel):
                 "Warning: Only one class present in y_true. C-Index score is not defined."
             )
             return 0.5
-        x = x.detach().numpy()
-        y = y.detach().numpy()
-        x = x.squeeze()
-        y = y.squeeze()
         c_index = concordance_index(y, x)
         return c_index
 
     def epoch_performance_metric(self, x, y):
+        x = x.squeeze()
+        y = y.squeeze()
         target_transform = self.target_transformation(y)
         _, preds = torch.max(x, 1)
         return self.evaluation_performance_metric(preds, target_transform), 1
@@ -290,6 +304,7 @@ class NLLSurvClassifier(ClassifierModel):
     def performance_metric_input_value(self):
         "prediction"
 
+    @property
     def evaluation_groups(self):
         return ["age_bin", "sex"]
 
@@ -302,12 +317,25 @@ class NLLSurvClassifier(ClassifierModel):
         return preds
 
     def final_activation(self, logits):
-        logits = logits.squeeze()
-        return torch.softmax(logits, dim=1)
+        logits =  torch.softmax(logits, dim=1)
+        _, preds = torch.max(logits, 1)
+        return preds
 
     def significance(self, gt, pred, recon):
-        return bootstrap(gt, pred, recon, concordance_index)
+        try:
+            return bootstrap(gt, pred, recon, concordance_index)
+        except ZeroDivisionError:
+            print("Warning: No admissible pairs in the data.")
+            return 0.5
 
+    @property
+    def plot_config(self):
+        return {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }
 
 class AgeCEClassifier(ClassifierModel):
     """
@@ -353,6 +381,7 @@ class AgeCEClassifier(ClassifierModel):
     def performance_metric_input_value(self):
         "prediction"
 
+    @property
     def evaluation_groups(self):
         return ["sex"]
 
@@ -365,12 +394,22 @@ class AgeCEClassifier(ClassifierModel):
         return preds
 
     def final_activation(self, logits):
-        logits = logits.squeeze()
-        return torch.softmax(logits, dim=1)
+        logits =  torch.softmax(logits, dim=1)
+        _, preds = torch.max(logits, 1)
+        return preds
 
     def significance(self, gt, pred, recon):
         p_value = hypothesis_test(pred, recon)
         return p_value
+    
+    @property
+    def plot_config(self):
+        return {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }
 
 
 class GenderBCEClassifier(ClassifierModel):
@@ -400,8 +439,6 @@ class GenderBCEClassifier(ClassifierModel):
 
     def evaluation_performance_metric(self, x, y):
         # Check if both classes (0 and 1) are present
-        x = x.detach().numpy()
-        y = y.detach().numpy()
         if len(np.unique(y)) == 1:
             print(
                 "Warning: Only one class present in y_true. ROC AUC score is not defined."
@@ -421,6 +458,7 @@ class GenderBCEClassifier(ClassifierModel):
     def performance_metric_input_value(self):
         "score"
 
+    @property
     def evaluation_groups(self):
         return ["age_bin"]
 
@@ -439,3 +477,12 @@ class GenderBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
+    @property
+    def plot_config(self):
+        return {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }
