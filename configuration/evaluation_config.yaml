@@ -2,6 +2,8 @@ data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
 output_name: "eval-complete"
 seed: 42
+os_bins: 4 
+age_bins: [0, 60, 100]
 reconstruction: 
   num_samples: 10
   lower_slice: 60

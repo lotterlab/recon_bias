@@ -137,7 +137,7 @@ class Trainer:
 
             self.optimizer.step()
 
-            running_loss += loss.item() * inputs.size(0)
+            running_loss += loss.item()
             performance_metric, n = self.model.epoch_performance_metric(outputs, labels)
             running_metrics += performance_metric
             total += n
@@ -171,7 +171,7 @@ class Trainer:
                 outputs = self.model(inputs)
                 loss = self.model.criterion(outputs, labels)
 
-                running_loss += loss.item() * inputs.size(0)
+                running_loss += loss.item()
                 performance_metric, n = self.model.epoch_performance_metric(
                     outputs, labels
                 )

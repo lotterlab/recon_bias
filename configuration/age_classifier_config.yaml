@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'age'
+output_name: 'age-60'
 save_interval: 1
 
 num_epochs: 20
@@ -12,6 +12,7 @@ type: 'T2'
 pathology: ["edema","non_enhancing"]
 lower_slice: 60
 upper_slice: 130
+age_bins: [0, 60, 100]
 
 classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'

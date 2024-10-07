@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'os'
+output_name: 'os50'
 save_interval: 1
 
 num_epochs: 20
@@ -14,7 +14,7 @@ lower_slice: 60
 upper_slice: 130
 
 classifier_type: 'NLLSurvClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
-network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
+network_type: 'ResNet50'  # Options: 'ResNet18', 'ResNet50'
 seed: 31415
 
 #bins: 4
