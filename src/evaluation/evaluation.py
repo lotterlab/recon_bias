@@ -157,15 +157,16 @@ def aggregate_predictions(grouped_df, classifier, groups, metric, age_bins, age_
             appendix = ""
 
         # Dynamically build relevant column names based on classifier name and appendix
+        cols = [f"{classifier['name']}_pred{appendix}",
+                f"{classifier['name']}_recon{appendix}"]
+        
+        if metric != "score":
+            cols.insert(0, f"{classifier['name']}_gt{appendix}")
         relevant_columns = [
             col
             for col in group_copy.columns
             if col
-            in [
-                f"{classifier['name']}_gt{appendix}",
-                f"{classifier['name']}_pred{appendix}",
-                f"{classifier['name']}_recon{appendix}",
-            ]
+            in cols
         ]
 
         # Filter the group to include only relevant columns
@@ -224,174 +225,174 @@ def classifier_evaluation(df, classifiers, output_dir):
 
     for classifier in classifiers:
 
-        x = classifier["model"].plot_config["x"]
-        x_label = classifier["model"].plot_config["x_label"]
-        facet_col = classifier["model"].plot_config.get("facet_col")
-        facet_col_label = classifier["model"].plot_config.get("facet_col_label")
+        for group, plot_config in group.items():
 
-        df_copy = df.copy()
-        grouped_df = df_copy.groupby(classifier["model"].evaluation_groups, observed=False)
-        classifier_name = classifier["name"]
+            x = plot_config["x"]
+            x_label = plot_config["x_label"]
+            facet_col = plot_config.get("facet_col")
+            facet_col_label = plot_config.get("facet_col_label")
 
-        print(f"Evaluating {classifier_name} predictions...")
-        # Classifier predictions with significance
-        print("Predictions")
-        metrics = aggregate_predictions(
-            grouped_df,
-            classifier,
-            classifier["model"].evaluation_groups,
-            "prediction",
-            age_bins,
-            age_labels,
-        )
-        grouped_bar_chart(
-            metrics,
-            x,
-            x_label,
-            "value",
-            "Classifier True Predictions",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} Predictions",
-            output_dir,
-            f"{classifier_name}_predictions.png",
-            facet_col,
-            facet_col_label,
-        )
+            df_copy = df.copy()
+            grouped_df = df_copy.groupby(group, observed=False)
+            classifier_name = classifier["name"]
 
-        f = lambda gt, y, x: hypothesis_test(y, x)
-        significance_results = apply_function_to_groups(
-            grouped_df,
-            classifier,
-            classifier["model"].evaluation_groups,
-            "prediction",
-            [
-                ("gt", "GT", "pred", "Classifier on GT"),
-                ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
-                ("gt", "GT", "recon", "Classifier on Reconstruction"),
-            ],
-            f,
-        )
-        grouped_bar_chart(
-            significance_results,
-            x,
-            x_label,
-            "value",
-            "Classifier Predictions Significance",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} Predictions Significance",
-            output_dir,
-            f"{classifier_name}_predictions_significance.png",
-            facet_col,
-            facet_col_label,
-        )
+            print(f"Evaluating {classifier_name} predictions...")
+            # Classifier predictions with significance
+            print("Predictions")
+            metrics = aggregate_predictions(
+                grouped_df,
+                classifier,
+                group,
+                "prediction",
+                age_bins,
+                age_labels,
+            )
+            grouped_bar_chart(
+                metrics,
+                x,
+                x_label,
+                "value",
+                "Classifier True Predictions",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} Predictions",
+                output_dir,
+                f"{classifier_name}_predictions.png",
+                facet_col,
+                facet_col_label,
+            )
 
-        print("Score")
-        # Classifier score with significance
-        metrics = aggregate_predictions(
-            grouped_df, classifier, classifier["model"].evaluation_groups, "score", age_bins, age_labels
-        )
-        grouped_bar_chart(
-            metrics,
-            x,
-            x_label,
-            "value",
-            "Classifier Score Predictions",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} Score",
-            output_dir,
-            f"{classifier_name}_score.png",
-            facet_col,
-            facet_col_label,
-        )
+            f = lambda gt, y, x: hypothesis_test(y, x)
+            significance_results = apply_function_to_groups(
+                grouped_df,
+                classifier,
+                group,
+                "prediction",
+                [
+                    ("gt", "GT", "pred", "Classifier on GT"),
+                    ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
+                    ("gt", "GT", "recon", "Classifier on Reconstruction"),
+                ],
+                f,
+            )
+            grouped_bar_chart(
+                significance_results,
+                x,
+                x_label,
+                "value",
+                "Classifier Predictions Significance",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} Predictions Significance",
+                output_dir,
+                f"{classifier_name}_predictions_significance.png",
+                facet_col,
+                facet_col_label,
+            )
 
-        f = lambda gt, y, x: hypothesis_test(y, x)
-        significance_results = apply_function_to_groups(
-            grouped_df,
-            classifier,
-            classifier["model"].evaluation_groups,
-            "score",
-            [
-                ("gt", "GT", "pred", "Classifier on GT"),
-                ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
-                ("gt", "GT", "recon", "Classifier on Reconstruction"),
-            ],
-            f,
-        )
-        grouped_bar_chart(
-            significance_results,
-            x,
-            x_label,
-            "value",
-            "Classifier Score Significance",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} Score Significance",
-            output_dir,
-            f"{classifier_name}_score_significance.png",
-            facet_col,
-            facet_col_label,
-        )
+            print("Score")
+            # Classifier score with significance
+            metrics = aggregate_predictions(
+                grouped_df, classifier, group, "score", age_bins, age_labels
+            )
+            grouped_bar_chart(
+                metrics,
+                x,
+                x_label,
+                "value",
+                "Classifier Score Predictions",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} Score",
+                output_dir,
+                f"{classifier_name}_score.png",
+                facet_col,
+                facet_col_label,
+            )
 
-        # Classifier performance metrics with significance
-        print("Performance")
-        f = lambda gt, y, x: classifier["model"].evaluation_performance_metric(y, x)
-        metrics = apply_function_to_groups(
-            grouped_df,
-            classifier,
-            classifier["model"].evaluation_groups,
-            classifier["model"].performance_metric_input_value,
-            [
-                ("gt", "GT", "pred", "Classifier on GT"),
-                ("gt", "GT", "recon", "Classifier on Reconstruction"),
-            ],
-            f,
-        )
-        grouped_bar_chart(
-            metrics,
-            x,
-            x_label,
-            "value",
-            f"{classifier['model'].performance_metric_name}",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} {classifier['model'].performance_metric_name}",
-            output_dir,
-            f"{classifier_name}_performance.png",
-            facet_col,
-            facet_col_label,
-        )
+            f = lambda gt, y, x: hypothesis_test(y, x)
+            significance_results = apply_function_to_groups(
+                grouped_df,
+                classifier,
+                group,
+                "score",
+                [
+                    ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
+                ],
+                f,
+            )
+            grouped_bar_chart(
+                significance_results,
+                x,
+                x_label,
+                "value",
+                "Classifier Score Significance",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} Score Significance",
+                output_dir,
+                f"{classifier_name}_score_significance.png",
+                facet_col,
+                facet_col_label,
+            )
 
-        significance_results = apply_function_to_groups(
-            grouped_df,
-            classifier,
-            classifier["model"].evaluation_groups,
-            classifier["model"].performance_metric_input_value,
-            [("pred", "Classifier on GT", "recon", "Classifier on Reconstruction")],
-            classifier["model"].significance,
-        )
-        grouped_bar_chart(
-            significance_results,
-            x,
-            x_label,
-            "value",
-            f"{classifier['model'].performance_metric_name} Significance",
-            "metric",
-            "Legend",
-            {},
-            f"{classifier_name} {classifier['model'].performance_metric_name} Significance",
-            output_dir,
-            f"{classifier_name}_performance_significance.png",
-            facet_col,
-            facet_col_label,
-        )
+            # Classifier performance metrics with significance
+            print("Performance")
+            f = lambda gt, y, x: classifier["model"].evaluation_performance_metric(y, x)
+            metrics = apply_function_to_groups(
+                grouped_df,
+                classifier,
+                group,
+                classifier["model"].performance_metric_input_value,
+                [
+                    ("gt", "GT", "pred", "Classifier on GT"),
+                    ("gt", "GT", "recon", "Classifier on Reconstruction"),
+                ],
+                f,
+            )
+            grouped_bar_chart(
+                metrics,
+                x,
+                x_label,
+                "value",
+                f"{classifier['model'].performance_metric_name}",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} {classifier['model'].performance_metric_name}",
+                output_dir,
+                f"{classifier_name}_performance.png",
+                facet_col,
+                facet_col_label,
+            )
+
+            significance_results = apply_function_to_groups(
+                grouped_df,
+                classifier,
+                group,
+                classifier["model"].performance_metric_input_value,
+                [("pred", "Classifier on GT", "recon", "Classifier on Reconstruction")],
+                classifier["model"].significance,
+            )
+            grouped_bar_chart(
+                significance_results,
+                x,
+                x_label,
+                "value",
+                f"{classifier['model'].performance_metric_name} Significance",
+                "metric",
+                "Legend",
+                {},
+                f"{classifier_name} {classifier['model'].performance_metric_name} Significance",
+                output_dir,
+                f"{classifier_name}_performance_significance.png",
+                facet_col,
+                facet_col_label,
+            )
 
 
 def reconstruction_evaluation(df, classifier, output_dir):

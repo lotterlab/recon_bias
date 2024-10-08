@@ -1,6 +1,7 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
 output_name: "eval-complete"
+#results_path: "" #If specified predictions will be loaded from this path
 seed: 42
 os_bins: 4 
 age_bins: [0, 60, 100]

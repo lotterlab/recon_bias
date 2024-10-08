@@ -155,6 +155,7 @@ def main():
     type_classifier = classifiers_config.get("type", "T2")
     os_bins = config.get("os_bins", 4)
     age_bins = config.get("age_bins", [0, 3, 18, 42, 67, 96])
+    results_path = config.get("results_path", None)
 
     transform = transforms.Compose(
         [
@@ -249,16 +250,17 @@ def main():
         sampling_mask=sampling_mask,
     )
 
-    # Process and evaluate classification
-    #classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
+    if results_path is None:
+        # Process and evaluate classification
+        classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
 
-    # Create DataFrame for results
-    #classifier_results_df = pd.DataFrame(classifier_results)
+        # Create DataFrame for results
+        classifier_results_df = pd.DataFrame(classifier_results)
 
-    # Save results to output directory
-    #classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
-
-    classifier_results_df = pd.read_csv("/homes9/matteow/code/dfci/output/eval-complete_20241002_223821/eval-complete_20241002_223821_classifier_results.csv")
+        # Save results to output directory
+        classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
+    else:
+        classifier_results_df = pd.read_csv(results_path)
 
     # Evaluate predictions
     classifier_evaluation(
