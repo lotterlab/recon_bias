@@ -3,12 +3,15 @@ import os
 import pandas as pd
 import plotly.express as px
 from scipy.stats import ttest_ind
+import matplotlib.pyplot as plt
 
 from src.utils.hypothesis_test import hypothesis_test
-
+from plotly.subplots import make_subplots
+from PIL import Image, ImageDraw, ImageFont
 
 def grouped_bar_chart(
     df,
+    overall_df,
     x,
     x_label,
     y,
@@ -19,12 +22,21 @@ def grouped_bar_chart(
     title,
     output_dir,
     output_name,
-    facet_col = None,
-    facet_col_label = None,
+    facet_col=None,
+    facet_col_label=None,
     facet_row=None,
     facet_row_label=None,
 ):
-    """Create a grouped bar chart with improved text on bars."""
+    """Create a grouped bar chart with an additional bar plot representing overall performance."""
+
+    # Split the title at "grouped by" and create new titles
+    if "grouped by" in title:
+        title_parts = title.split("grouped by")
+        base_title = title_parts[0].strip()  # Get the first part of the title
+    else:
+        base_title = title  # Fallback if "grouped by" isn't found
+
+    overall_title = f"{base_title} Overall"
 
     # Ensure output directory exists
     if not os.path.exists(output_dir):
@@ -39,8 +51,8 @@ def grouped_bar_chart(
     if facet_col:
         labels[facet_col] = facet_col_label
 
-    # Create the bar chart
-    fig = px.bar(
+    # Create the detailed grouped bar chart using Plotly
+    fig_bar = px.bar(
         df,
         x=x,
         y=y,
@@ -50,22 +62,21 @@ def grouped_bar_chart(
         facet_row=facet_row,
         category_orders=category_order,
         labels=labels,
-        title=title,
         text=y,  # Display the y values as text on the bars
+        title=title,
     )
 
     # Ensure the numbers on the axis display correctly
-    fig.update_layout(
-        yaxis_tickformat=".3f",  # Format axis to show up to three decimal places
-        uniformtext_minsize=8,  # Minimum size for text on bars
-        uniformtext_mode="hide",  # Hide text if it gets too small
-        width=1000,  # Increase the width of the chart to provide more space
-        height=600,
+    fig_bar.update_layout(
+        yaxis_tickformat=".3f",
+        uniformtext_minsize=8,
+        uniformtext_mode="hide",
         title_x=0.5,
+        showlegend=False,  # Keep legend for the detailed performance chart
     )
 
     # Adjust the text position and styling on the bars
-    fig.update_traces(
+    fig_bar.update_traces(
         texttemplate="%{text:.3f}",  # Format text to three decimal places
         textposition="outside",  # Text outside bars (adjust to 'inside' if preferred)
         textfont=dict(
@@ -74,18 +85,78 @@ def grouped_bar_chart(
         ),
     )
 
-    # Save the plot as an image
-    fig.write_image(os.path.join(output_dir, output_name))
+    # Save the detailed grouped bar chart as an image
+    bar_chart_path = os.path.join(output_dir, "temp_bar_chart.png")
+    fig_bar.write_image(bar_chart_path)
+
+    # Create the overall performance bar chart using Plotly
+    fig_overall = px.bar(
+        overall_df,
+        x="overall",  # This is the data column
+        y="value",
+        color="metric",
+        barmode="group",
+        labels={x: "", y: "", color: color_label},  # Keep labels empty to avoid showing the column name
+        text=y,  # Display the y values as text on the bars
+        title=overall_title,
+    )
+
+    fig_overall.update_layout(
+        yaxis_tickformat=".3f",
+        uniformtext_minsize=8,
+        uniformtext_mode="hide",
+        title_x=0.5,
+        xaxis_title=None,  # Explicitly set 'Overall' as the x-axis title
+        showlegend=True  # Show legend for the overall plot
+    )
+
+    fig_overall.update_traces(
+        texttemplate="%{text:.3f}",
+        textposition="outside",
+        textfont=dict(
+            color="black",
+            size=12,
+        ),
+    )
+
+    # Save the overall performance bar chart as an image
+    overall_chart_path = os.path.join(output_dir, "temp_overall_chart.png")
+    fig_overall.write_image(overall_chart_path)
+
+    # Combine both images using PIL
+    bar_chart_img = Image.open(bar_chart_path)
+    overall_chart_img = Image.open(overall_chart_path)
+
+    # Determine the final image size, including space for the title
+    total_width = bar_chart_img.width + overall_chart_img.width
+    max_height = max(bar_chart_img.height, overall_chart_img.height)
+    title_height = 0  # Adjust this value based on the font size
+
+    # Create a new image with a white background
+    combined_img = Image.new("RGB", (total_width, max_height + title_height), "white")
+
+    # Paste both charts below the title
+    combined_img.paste(bar_chart_img, (0, title_height))
+    combined_img.paste(overall_chart_img, (bar_chart_img.width, title_height))
+
+    # Save the final combined image
+    output_path = os.path.join(output_dir, output_name)
+    combined_img.save(output_path)
+
+    # Clean up temporary files
+    if os.path.exists(bar_chart_path):
+        os.remove(bar_chart_path)
+    if os.path.exists(overall_chart_path):
+        os.remove(overall_chart_path)
 
 
-def get_age_bins(df):
+def get_age_bins(df, age_bins):
     """Adjust the age bins and labels to only include those present in the dataframe."""
     # Get the minimum and maximum age values from the data
-    bins = [0, 3, 18, 42, 67, 96]
-    labels = ["0-2", "3-17", "18-41", "42-66", "67-96"]
+    age_labels = [f"{age_bins[i]}-{age_bins[i+1]-1}" for i in range(len(age_bins)-1)]
 
-    adjusted_bins = bins.copy()
-    adjusted_labels = labels.copy()
+    adjusted_bins = age_bins.copy()
+    adjusted_labels = age_labels.copy()
 
     min_age = df["age"].min()
     max_age = df["age"].max()
@@ -101,9 +172,10 @@ def get_age_bins(df):
     return adjusted_bins, adjusted_labels
 
 
-def apply_function_to_groups(grouped_df, classifier, groups, metric, columns, func):
+def apply_function_to_column_pairs(grouped_df, model, groups, metric, columns, func):
     """Calculate the significance between the GT and prediction/reconstruction values."""
     results = []
+    overall = []
 
     if metric == "score":
         appendix = "_score"
@@ -111,12 +183,11 @@ def apply_function_to_groups(grouped_df, classifier, groups, metric, columns, fu
         appendix = ""
 
     for group_keys, group in grouped_df:
-        print(f"Applying function for {group_keys}...")
 
         for col1, col1_name, col2, col2_name in columns:
-            gt = group[f"{classifier['name']}_gt{appendix}"]
-            column1 = group[f"{classifier['name']}_{col1}{appendix}"]
-            column2 = group[f"{classifier['name']}_{col2}{appendix}"]
+            gt = group[f"{model['name']}_gt{appendix}"]
+            column1 = group[f"{model['name']}_{col1}{appendix}"]
+            column2 = group[f"{model['name']}_{col2}{appendix}"]
 
             # Calculate significance between the two columns
             result = func(gt, column1, column2)
@@ -135,97 +206,101 @@ def apply_function_to_groups(grouped_df, classifier, groups, metric, columns, fu
                 }
             )
 
-    metrics_df = pd.DataFrame(results)
+    # Calculate overall value
+    overall_group = grouped_df.obj  # Access the entire dataframe from the grouped object
 
-    return metrics_df
+    for col1, col1_name, col2, col2_name in columns:
+        gt = overall_group[f"{model['name']}_gt{appendix}"]
+        column1 = overall_group[f"{model['name']}_{col1}{appendix}"]
+        column2 = overall_group[f"{model['name']}_{col2}{appendix}"]
 
+        # Calculate overall significance
+        overall_result = func(gt, column1, column2)
 
-def aggregate_predictions(grouped_df, classifier, groups, metric, age_bins, age_labels):
-
-    results = []
-
-    # Assume `grouping_cols` is a list like ['sex', 'age_bin']
-    for group_keys, group in grouped_df:
-        # Copy the group
-        print(f"Aggregating predictions for {group_keys}...")
-        group_copy = group.copy()
-
-        # Select only 'gt', 'pred', 'recon' columns based on metric type
-        if metric == "score":
-            appendix = "_score"
-        else:
-            appendix = ""
-
-        # Dynamically build relevant column names based on classifier name and appendix
-        cols = [f"{classifier['name']}_pred{appendix}",
-                f"{classifier['name']}_recon{appendix}"]
-        
-        if metric != "score":
-            cols.insert(0, f"{classifier['name']}_gt{appendix}")
-        relevant_columns = [
-            col
-            for col in group_copy.columns
-            if col
-            in cols
-        ]
-
-        # Filter the group to include only relevant columns
-        group_relevant = group_copy[relevant_columns]
-
-        # Rename columns to remove classifier name and appendix
-        group_relevant.columns = group_relevant.columns.str.replace(
-            f"{classifier['name']}_", ""
-        ).str.replace(appendix, "")
-
-        # Change gt, pred and recon
-        group_relevant = group_relevant.rename(
-            columns={
-                f"gt": "Ground Truth (GT)",
-                f"pred": "Classifier on GT",
-                f"recon": "Classifier on Reconstruction",
+        # Append the overall result with a special "overall" label for group
+        overall.append(
+            {
+                "overall": "",  # Mark as overall group
+                "metric": f"{col1_name} - {col2_name}",
+                "value": overall_result,
             }
         )
 
-        # Get number of samples
-        n_samples = len(group_relevant)
+    metrics_df = pd.DataFrame(results)
+    overall_df = pd.DataFrame(overall)
 
-        # Apply the custom function (mean in this case)
-        metrics = group_relevant.mean()
+    return metrics_df, overall_df
 
-        # Prepare a dictionary to hold grouping information
-        # If you are grouping by multiple columns, group_keys will be a tuple of values
-        if isinstance(group_keys, tuple):
-            group_info = {col: val for col, val in zip(groups, group_keys)}
-        else:
-            group_info = {groups[0]: group_keys}
+def apply_function_to_single_column(grouped_df, model, groups, metric, columns, func):
+    """Calculate the significance between the GT and prediction/reconstruction values."""
+    results = []
+    overall = []
 
-        # Append metrics to results
-        for metric_name, value in metrics.items():
+    if metric == "score":
+        appendix = "_score"
+    else:
+        appendix = ""
+
+    for group_keys, group in grouped_df:
+
+        for col, col_name in columns:
+            column = group[f"{model['name']}_{col}{appendix}"]
+
+            # Calculate significance between the two columns
+            result = func(column)
+
+            # Append the results
+            if isinstance(group_keys, tuple):
+                group_info = {col: val for col, val in zip(groups, group_keys)}
+            else:
+                group_info = {groups[0]: group_keys}
+
             results.append(
                 {
                     **group_info,  # Add the group info (sex, age_bin, etc.)
-                    "metric": metric_name,
-                    "value": value,
-                    "n_samples": n_samples,
+                    "metric": f"{col_name}",
+                    "value": result,
                 }
             )
 
-    # Create the final DataFrame
+    # Calculate overall value
+    overall_group = grouped_df.obj  # Access the entire dataframe from the grouped object
+
+    for col, col_name in columns:
+        column = overall_group[f"{model['name']}_{col}{appendix}"]
+
+        # Calculate overall significance
+        overall_result = func(column)
+
+        # Append the overall result with a special "overall" label for group
+        overall.append(
+            {
+                "overall": "",  # Mark as overall group
+                "metric": f"{col_name}",
+                "value": overall_result,
+            }
+        )
+
     metrics_df = pd.DataFrame(results)
+    overall_df = pd.DataFrame(overall)
 
-    return metrics_df
+    return metrics_df, overall_df
 
-
-def classifier_evaluation(df, classifiers, output_dir):
+def classifier_evaluation(df, classifiers, age_bins, output_dir):
     """Evaluate the classifier predictions and generate visualizations."""
-    age_bins, age_labels = get_age_bins(df)
+    age_bins, age_labels = get_age_bins(df, age_bins)
 
     # Categorize 'age' into bins
     df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=True)
+    base_dir = output_dir
 
     for classifier in classifiers:
+        classifier_name = classifier["name"]
+        print(f"Evaluating {classifier_name} predictions...")
 
-        for group, plot_config in group.items():
+        for (group, plot_config, group_name) in classifier["model"].evaluation_groups:
+
+            output_dir = os.path.join(base_dir, classifier_name, group_name)
 
             x = plot_config["x"]
             x_label = plot_config["x_label"]
@@ -234,21 +309,19 @@ def classifier_evaluation(df, classifiers, output_dir):
 
             df_copy = df.copy()
             grouped_df = df_copy.groupby(group, observed=False)
-            classifier_name = classifier["name"]
 
-            print(f"Evaluating {classifier_name} predictions...")
             # Classifier predictions with significance
-            print("Predictions")
-            metrics = aggregate_predictions(
+            metrics, overall = apply_function_to_single_column( 
                 grouped_df,
                 classifier,
                 group,
                 "prediction",
-                age_bins,
-                age_labels,
+                [("gt", "Ground Truth"), ("pred", "Classifier on GT"), ("recon", "Classifier on Reconstruction")],
+                lambda x: x.mean()
             )
             grouped_bar_chart(
                 metrics,
+                overall,
                 x,
                 x_label,
                 "value",
@@ -256,15 +329,15 @@ def classifier_evaluation(df, classifiers, output_dir):
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} Predictions",
+                f"{classifier_name} predictions grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_predictions.png",
+                f"{classifier_name}_predictions_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
 
             f = lambda gt, y, x: hypothesis_test(y, x)
-            significance_results = apply_function_to_groups(
+            significance_results, overall = apply_function_to_column_pairs(
                 grouped_df,
                 classifier,
                 group,
@@ -278,6 +351,7 @@ def classifier_evaluation(df, classifiers, output_dir):
             )
             grouped_bar_chart(
                 significance_results,
+                overall,
                 x,
                 x_label,
                 "value",
@@ -285,20 +359,24 @@ def classifier_evaluation(df, classifiers, output_dir):
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} Predictions Significance",
+                f"{classifier_name} predictions significance grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_predictions_significance.png",
+                f"{classifier_name}_predictions_significance_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
-
-            print("Score")
             # Classifier score with significance
-            metrics = aggregate_predictions(
-                grouped_df, classifier, group, "score", age_bins, age_labels
+            metrics, overall = apply_function_to_single_column( 
+                grouped_df,
+                classifier,
+                group,
+                "score",
+                [("pred", "Classifier on GT"), ("recon", "Classifier on Reconstruction")],
+                lambda x: x.mean()
             )
             grouped_bar_chart(
                 metrics,
+                overall, 
                 x,
                 x_label,
                 "value",
@@ -306,15 +384,15 @@ def classifier_evaluation(df, classifiers, output_dir):
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} Score",
+                f"{classifier_name} score grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_score.png",
+                f"{classifier_name}_score_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
 
             f = lambda gt, y, x: hypothesis_test(y, x)
-            significance_results = apply_function_to_groups(
+            significance_results, overall = apply_function_to_column_pairs(
                 grouped_df,
                 classifier,
                 group,
@@ -326,6 +404,7 @@ def classifier_evaluation(df, classifiers, output_dir):
             )
             grouped_bar_chart(
                 significance_results,
+                overall,
                 x,
                 x_label,
                 "value",
@@ -333,17 +412,16 @@ def classifier_evaluation(df, classifiers, output_dir):
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} Score Significance",
+                f"{classifier_name} score significance grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_score_significance.png",
+                f"{classifier_name}_score_significance_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
 
             # Classifier performance metrics with significance
-            print("Performance")
-            f = lambda gt, y, x: classifier["model"].evaluation_performance_metric(y, x)
-            metrics = apply_function_to_groups(
+            f = lambda gt, y, x: classifier["model"].evaluation_performance_metric(x, y)
+            metrics, overall = apply_function_to_column_pairs(
                 grouped_df,
                 classifier,
                 group,
@@ -356,6 +434,7 @@ def classifier_evaluation(df, classifiers, output_dir):
             )
             grouped_bar_chart(
                 metrics,
+                overall,
                 x,
                 x_label,
                 "value",
@@ -363,14 +442,14 @@ def classifier_evaluation(df, classifiers, output_dir):
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} {classifier['model'].performance_metric_name}",
+                f"{classifier_name} {classifier['model'].performance_metric_name} grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_performance.png",
+                f"{classifier_name}_performance_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
 
-            significance_results = apply_function_to_groups(
+            significance_results, overall = apply_function_to_column_pairs(
                 grouped_df,
                 classifier,
                 group,
@@ -380,22 +459,66 @@ def classifier_evaluation(df, classifiers, output_dir):
             )
             grouped_bar_chart(
                 significance_results,
+                overall,
                 x,
                 x_label,
                 "value",
-                f"{classifier['model'].performance_metric_name} Significance",
+                f"{classifier['model'].performance_metric_name} significance",
                 "metric",
                 "Legend",
                 {},
-                f"{classifier_name} {classifier['model'].performance_metric_name} Significance",
+                f"{classifier_name} {classifier['model'].performance_metric_name} significance grouped by {group_name}",
                 output_dir,
-                f"{classifier_name}_performance_significance.png",
+                f"{classifier_name}_performance_significance_{group_name}.png",
                 facet_col,
                 facet_col_label,
             )
 
 
-def reconstruction_evaluation(df, classifier, output_dir):
+def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
     """Evaluate the reconstruction predictions and generate visualizations."""
     # Evaluate the classifier predictions
-    pass
+    age_bins, age_labels = get_age_bins(df, age_bins)
+    output_dir = os.path.join(output_dir, reconstruction["name"])
+
+    # Categorize 'age' into bins
+    df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=True)
+    performance_metrics = [("psnr", "PSNR"), ("ssim", "SSIM"), ("nrmse", "NRSME")]
+    print(f"Evaluating reconstruction ...")
+
+    for (group, plot_config, group_name) in reconstruction["model"].evaluation_groups: 
+
+        for (performance_metric, performance_metric_label) in performance_metrics:
+            x = plot_config["x"]
+            x_label = plot_config["x_label"]
+            facet_col = plot_config.get("facet_col")
+            facet_col_label = plot_config.get("facet_col_label")
+
+            df_copy = df.copy()
+            grouped_df = df_copy.groupby(group, observed=False)
+
+            # Show performance metrics
+            metrics, overall = apply_function_to_single_column( 
+                grouped_df,
+                reconstruction,
+                group,
+                "prediction",
+                [(performance_metric, performance_metric_label) ],
+                lambda x: x.mean()
+            )
+            grouped_bar_chart(
+                metrics,
+                overall,
+                x,
+                x_label,
+                "value",
+                "Classifier True Predictions",
+                "metric",
+                "Legend",
+                {},
+                f"{reconstruction['name']} performance grouped by {group_name}",
+                output_dir,
+                f"{reconstruction['name']}_{performance_metric_label}_{group_name}.png",
+                facet_col,
+                facet_col_label,
+            )

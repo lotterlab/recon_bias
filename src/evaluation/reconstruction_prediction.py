@@ -1,86 +1,79 @@
 from typing import List, Optional
-
 import numpy as np
 import pandas as pd
 import torch
-import yaml
+import torch.nn.functional as F
+from skimage.metrics import structural_similarity as ssim_metric
 
-from src.utils.labels import extract_labels_from_row
+
+def calculate_psnr(x: np.ndarray, y: np.ndarray, max_value: float = 1.0) -> float:
+    """Calculate PSNR between two images."""
+    mse = np.mean((x - y) ** 2)
+    if mse == 0:
+        return float('inf')
+    return 20 * np.log10(max_value / np.sqrt(mse))
 
 
-def majority_voting(predictions: List[int]) -> int:
-    """Aggregate predictions via majority voting."""
-    return max(set(predictions), key=predictions.count)
+def calculate_nrmse(x: np.ndarray, y: np.ndarray) -> float:
+    """Calculate Normalized RMSE between two images."""
+    rmse = np.sqrt(np.mean((x - y) ** 2))
+    norm_factor = np.max(y) - np.min(y)
+    return rmse / norm_factor
 
 
 def process_patient_data(
     patient_info,
-    patient_classification_data,
     patient_reconstruction_data,
-    classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None,
 ) -> dict:
     """Process each patient, returning a dictionary of results."""
 
-    for classifier_info in classifiers:
-        classifier_name = classifier_info["name"]
-        classifier = classifier_info["model"]
+    psnr_values = []
+    ssim_values = []
+    nrmse_values = []
 
-        patient_psnr = []
-        patient_ssim = []
-        patient_nrmse = []
+    for i, (x, y) in enumerate(patient_reconstruction_data):
+        with torch.no_grad():
+            # Prediction on original image
+            x = x.unsqueeze(0)
+            y = y.unsqueeze(0)
 
-        for i, (x, y) in enumerate(patient_classification_data):
-            with torch.no_grad():
-                # Prediction on original image
-                x = x.unsqueeze(0)
-                y = y.unsqueeze(0)
+            # Run the reconstruction model to get the prediction
+            prediction = reconstruction_model["model"](x)
 
-                class_output = classifier(x)
-                class_score = classifier.final_activation(class_output)
-                patient_class_scores.append(class_score.item())
-                class_pred = classifier.classification_criteria(class_output)
-                patient_class_predictions.append(class_pred.item())
+            # Convert tensors to numpy arrays for metric calculations
+            y_np = y.squeeze().squeeze().cpu().numpy()
+            pred_np = prediction.squeeze().squeeze().cpu().numpy()
 
-                # Ground truth
-                if patient_gt is None:  # We only need to calculate GT once
-                    patient_gt = classifier.target_transformation(y).item()
+            # PSNR Calculation
+            psnr_value = calculate_psnr(pred_np, y_np)
+            psnr_values.append(psnr_value)
 
-                # Prediction on reconstruction if reconstruction model exists
-                x_recon, _ = patient_reconstruction_data[i]
-                x_recon = x_recon.unsqueeze(0)
-                recon_image = reconstruction_model(x_recon)
-                recon_output = classifier(recon_image)
-                recon_score = classifier.final_activation(recon_output)
-                patient_recon_scores.append(recon_score.item())
-                recon_pred = classifier.classification_criteria(recon_output)
-                patient_recon_predictions.append(recon_pred.item())
+            # SSIM Calculation
+            ssim_value = ssim_metric(y_np, pred_np, data_range=pred_np.max() - pred_np.min())
+            ssim_values.append(ssim_value)
 
-        # Aggregate predictions using majority voting
-        majority_class_pred = majority_voting(patient_class_predictions)
-        patient_info[f"{classifier_name}_gt"] = patient_gt
-        patient_info[f"{classifier_name}_pred"] = majority_class_pred
+            # NRMSE Calculation
+            nrmse_value = calculate_nrmse(pred_np, y_np)
+            nrmse_values.append(nrmse_value)
 
-        average_class_score = np.mean(patient_class_scores)
-        patient_gt_score = float(patient_gt)
-        patient_info[f"{classifier_name}_gt_score"] = patient_gt_score
-        patient_info[f"{classifier_name}_pred_score"] = average_class_score
+    # Aggregate predictions using majority voting
+    aggregated_psnr = np.mean(psnr_values)
+    aggregated_ssim = np.mean(ssim_values)
+    aggregated_nrmse = np.mean(nrmse_values)
 
-        majority_recon_pred = majority_voting(patient_recon_predictions)
-        patient_info[f"{classifier_name}_recon"] = majority_recon_pred
-
-        average_recon_score = np.mean(patient_recon_scores)
-        patient_info[f"{classifier_name}_recon_score"] = average_recon_score
+    # Store the aggregated results in the patient info
+    patient_info["psnr"] = aggregated_psnr
+    patient_info["ssim"] = aggregated_ssim
+    patient_info["nrmse"] = aggregated_nrmse
 
     return patient_info
 
 
 def reconstruction_predictions(
     data_root,
-    classification_dataset,
     reconstruction_dataset,
     metadata: pd.DataFrame,
-    classifiers: List[dict],
     reconstruction_model: Optional[torch.nn.Module] = None,
     num_samples=None,
 ) -> List[dict]:
@@ -99,17 +92,10 @@ def reconstruction_predictions(
             "sex": patient_df["sex"].iloc[0],
             "age": patient_df["age_at_mri"].iloc[0],
         }
-        patient_classification_data = classification_dataset.get_patient_data(
-            patient_id
-        )
-        patient_reconstruction_data = reconstruction_dataset.get_patient_data(
-            patient_id
-        )
+        patient_reconstruction_data = reconstruction_dataset.get_patient_data(patient_id)
         patient_prediction = process_patient_data(
             patient_info,
-            patient_classification_data,
             patient_reconstruction_data,
-            classifiers,
             reconstruction_model,
         )
         patient_predictions.append(patient_prediction)

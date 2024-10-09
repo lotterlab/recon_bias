@@ -30,6 +30,7 @@ from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.utils.mock_data import get_mock_data
 from src.utils.transformations import min_max_slice_normalization
 from scipy.stats import hmean, gmean, trim_mean
+from sklearn.metrics import accuracy_score
 
 
 def set_seed(seed):
@@ -101,9 +102,10 @@ def classifier_predictions(classification_dataset, metadata, classifiers, num_sa
         num_samples: Optional limit for the number of patients to process.
         
     Returns:
-        Dictionary of slice-level predictions and ground truth for each classifier.
+        Dictionary of slice-level predictions, raw scores, and ground truth for each classifier.
     """
     predictions = {}
+    scores = {}
     ground_truth = {}
 
     index = 0
@@ -121,10 +123,12 @@ def classifier_predictions(classification_dataset, metadata, classifiers, num_sa
             # Initialize predictions and ground truth for this classifier if first time processing
             if classifier_name not in predictions:
                 predictions[classifier_name] = {}
+                scores[classifier_name] = {}
             if classifier_name not in ground_truth:
                 ground_truth[classifier_name] = {}
 
             slice_scores = []
+            slice_predictions = []
             patient_gt = None
 
             for slice_data, slice_label in patient_data:
@@ -139,11 +143,16 @@ def classifier_predictions(classification_dataset, metadata, classifiers, num_sa
                     class_score = classifier_model.final_activation(class_output).cpu().numpy().item()  # Get scalar score
                     slice_scores.append(class_score)
 
-            # Store slice-level scores and classifier-specific ground truth for this patient
-            predictions[classifier_name][patient_id] = np.array(slice_scores)
+                    # Convert the class output to a binary prediction (e.g., 0 or 1)
+                    slice_prediction = classifier_model.classification_criteria(class_output).cpu().numpy().item()
+                    slice_predictions.append(slice_prediction)
+
+            # Store slice-level scores and predictions for this patient
+            scores[classifier_name][patient_id] = np.array(slice_scores)
+            predictions[classifier_name][patient_id] = np.array(slice_predictions)
             ground_truth[classifier_name][patient_id] = patient_gt
 
-    return predictions, ground_truth
+    return predictions, scores, ground_truth
 
 def aggregate_patient_scores(metadata, classifier_results, ground_truth):
     """
@@ -191,6 +200,73 @@ def aggregate_patient_scores(metadata, classifier_results, ground_truth):
     df_aggregated = pd.DataFrame(aggregated_results)
     return df_aggregated
 
+def aggregate_patient_predictions(metadata, predictions, scores, classifiers):
+    """
+    Aggregates slice-level scores (for binary classification) and predictions using different methods:
+    mean, median, majority vote, highest confidence.
+    
+    Args:
+        metadata: DataFrame containing patient metadata.
+        predictions: Dictionary containing slice-level predictions for each classifier.
+        scores: Dictionary containing slice-level scores for each classifier.
+        classifiers: List of classifiers with their respective models.
+        
+    Returns:
+        DataFrame with patient_id, aggregated predictions and scores for each classifier.
+    """
+    aggregated_results = []
+
+    for patient_id in metadata["patient_id"].unique():
+        patient_results = {"patient_id": patient_id}
+
+        patient_exists = False
+        for classifier_name, predictions_dict in predictions.items():
+            if patient_id in predictions_dict:
+                patient_exists = True
+
+        if not patient_exists:
+            continue
+
+        for classifier_info in classifiers:
+
+
+            if classifier_info["name"] == "NLLSurvClassifier":
+                continue
+
+            classifier_name = classifier_info["name"]
+            slice_scores = scores[classifier_name][patient_id]  # Continuous scores for each slice
+            slice_predictions = predictions[classifier_name][patient_id]  # Binary predictions for each slice
+
+            # Score-based Aggregation (mean, median)
+            mean_score = np.mean(slice_scores)
+            median_score = np.median(slice_scores)
+            trimmed_mean_score = trim_mean(slice_scores, 0.05)
+
+            # Convert aggregated scores back to binary predictions using threshold (0.5)
+            mean_prediction = (mean_score >= 0.5).astype(int)
+            median_prediction = (median_score >= 0.5).astype(int)
+
+            # Prediction-based Aggregation (majority vote)
+            majority_vote = np.argmax(np.bincount(slice_predictions.astype(int)))
+
+            # Most Confident: Find the score furthest from 0.5 and take its corresponding prediction
+            most_confident_idx = np.argmax(np.abs(slice_scores - 0.5))
+            most_confident_prediction = slice_predictions[most_confident_idx]
+
+            # Store results
+            patient_results[f"{classifier_name}_mean_score"] = mean_score
+            patient_results[f"{classifier_name}_mean_prediction"] = mean_prediction
+            patient_results[f"{classifier_name}_median_score"] = median_score
+            patient_results[f"{classifier_name}_median_prediction"] = median_prediction
+            patient_results[f"{classifier_name}_trimmed_mean_score"] = trimmed_mean_score
+            patient_results[f"{classifier_name}_majority_vote"] = majority_vote
+            patient_results[f"{classifier_name}_most_confident"] = most_confident_prediction
+
+        aggregated_results.append(patient_results)
+
+    df_aggregated = pd.DataFrame(aggregated_results)
+    return df_aggregated
+
 def calculate_performance_metrics(aggregated_results, classifiers, output_path):
     """
     Calculate the performance metrics for each classifier and aggregation method.
@@ -220,9 +296,6 @@ def calculate_performance_metrics(aggregated_results, classifiers, output_path):
                 predictions.append(prediction)
                 labels.append(gt)
 
-            print(f"Calculating performance metrics for {classifier_name} using {agg_method} aggregation...")
-            print("Predictions:", predictions)
-            print("Labels:", labels)
             metric = classifier.evaluation_performance_metric(np.array(predictions), np.array(labels))
 
             # Store results
@@ -236,6 +309,54 @@ def calculate_performance_metrics(aggregated_results, classifiers, output_path):
     df_performance.to_csv(os.path.join(output_path, "performance_metrics.csv"), index=False)
     
     return df_performance
+
+def calculate_prediction_accuracy(aggregated_results, ground_truth, classifiers, output_path):
+    """
+    Calculate the accuracy of aggregated predictions for each classifier and aggregation method.
+    
+    Args:
+        aggregated_results: DataFrame with patient_id and aggregated predictions for each classifier.
+        ground_truth: Dictionary containing classifier-specific ground truth labels for each patient.
+        classifiers: List of classifiers to evaluate.
+        output_path: Path to save the prediction accuracy CSV file.
+    
+    Returns:
+        DataFrame containing accuracy for each classifier and aggregation method.
+    """
+    accuracy_results = []
+
+    for classifier_info in classifiers:
+        classifier_name = classifier_info["name"]
+
+        if classifier_name == "NLLSurvClassifier":
+            continue
+
+        for agg_method in ["mean_prediction", "median_prediction", "majority_vote", "most_confident"]:
+            predictions = []
+            labels = []
+
+            for _, row in aggregated_results.iterrows():
+                prediction = row[f"{classifier_name}_{agg_method}"]
+                gt = ground_truth[classifier_name][row["patient_id"]].numpy().item()
+
+                print(f"Prediction: {prediction}, GT: {gt}")
+                predictions.append(prediction)
+                labels.append(gt)
+
+            # Calculate accuracy
+            accuracy = accuracy_score(labels, predictions)
+
+            # Store results
+            accuracy_results.append({
+                "classifier": classifier_name,
+                "aggregation_method": agg_method,
+                "accuracy": accuracy
+            })
+
+    df_accuracy = pd.DataFrame(accuracy_results)
+    df_accuracy.to_csv(os.path.join(output_path, "prediction_accuracy.csv"), index=False)
+    
+    return df_accuracy
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate classification models.")
@@ -285,9 +406,14 @@ def main():
         )
         classifiers.append({"model": classifier, "name": classifier_cfg["type"]})
 
-    results, ground_truth = classifier_predictions(classifier_dataset, metadata, classifiers, num_samples)
-    aggregated_results = aggregate_patient_scores(metadata, results, ground_truth)
-    calculate_performance_metrics(aggregated_results, classifiers, output_path)
+    predictions, scores, ground_truth = classifier_predictions(classifier_dataset, metadata, classifiers, num_samples)
+    aggregated_scores = aggregate_patient_scores(metadata, scores, ground_truth)
+    calculate_performance_metrics(aggregated_scores, classifiers, output_path)
+
+    aggregated_predictions  = aggregate_patient_predictions(metadata, predictions, scores, classifiers)
+    calculate_prediction_accuracy(aggregated_predictions, ground_truth, classifiers, output_path)
+
+
 
     print("Performance metrics saved at:", os.path.join(output_path, "performance_metrics.csv"))
 

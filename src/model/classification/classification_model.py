@@ -130,7 +130,22 @@ class TTypeBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return ["age_bin", "sex"]
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex"), (["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age"), (["sex", "age_bin"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }, "sex_age")]
 
     @property
     def num_classes(self):
@@ -147,16 +162,6 @@ class TTypeBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
-
-    @property
-    def plot_config(self):
-        return {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }
-
 
 class TGradeBCEClassifier(ClassifierModel):
     """
@@ -207,7 +212,22 @@ class TGradeBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return ["age_bin", "sex"]
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex"), (["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age"), (["sex", "age_bin"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }, "sex_age")]
 
     @property
     def num_classes(self):
@@ -224,15 +244,6 @@ class TGradeBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
-
-    @property
-    def plot_config(self):
-        return {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }
 
 
 class NLLSurvClassifier(ClassifierModel):
@@ -303,7 +314,7 @@ class NLLSurvClassifier(ClassifierModel):
             print(
                 "Warning: Only one class present in y_true. C-Index score is not defined."
             )
-            return 0.5
+            return 0
         c_index = concordance_index(y, x)
         return c_index
 
@@ -326,7 +337,22 @@ class NLLSurvClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return ["age_bin", "sex"]
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex"), (["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age"), (["sex", "age_bin"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }, "sex_age")]
 
     @property
     def num_classes(self):
@@ -345,15 +371,6 @@ class NLLSurvClassifier(ClassifierModel):
         except ZeroDivisionError:
             print("Warning: No admissible pairs in the data.")
             return 0.5
-
-    @property
-    def plot_config(self):
-        return {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }
     
     def _risk_score(self, logits):
         haz = logits.sigmoid() + self.eps
@@ -396,7 +413,7 @@ class AgeCEClassifier(ClassifierModel):
             print(
                 "Warning: Only one class present in y_true. AUROC score is not defined."
             )
-            return 0.5
+            return 0
         return roc_auc_score(y, x)
 
     def epoch_performance_metric(self, x, y):
@@ -422,7 +439,12 @@ class AgeCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return ["sex"]
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex")]
 
     @property
     def num_classes(self):
@@ -449,16 +471,6 @@ class AgeCEClassifier(ClassifierModel):
             return p_value
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
-    
-    @property
-    def plot_config(self):
-        return {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }
-
 
 class GenderBCEClassifier(ClassifierModel):
     """
@@ -508,7 +520,12 @@ class GenderBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return ["age_bin"]
+        return [(["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age")]
 
     @property
     def num_classes(self):
@@ -525,12 +542,3 @@ class GenderBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
-
-    @property
-    def plot_config(self):
-        return {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }

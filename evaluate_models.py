@@ -153,9 +153,9 @@ def main():
     upper_slice_classifier = classifiers_config.get("upper_slice", None)
     pathology_classifier = classifiers_config.get("pathology", None)
     type_classifier = classifiers_config.get("type", "T2")
+    classifier_results_path = classifiers_config.get("results_path", None)
     os_bins = config.get("os_bins", 4)
     age_bins = config.get("age_bins", [0, 3, 18, 42, 67, 96])
-    results_path = config.get("results_path", None)
 
     transform = transforms.Compose(
         [
@@ -203,6 +203,7 @@ def main():
     sampling_mask = None
     pathology_reconstruction = None
     type_reconstruction = None
+    reconstruction_results_path = None
     reconstruction = None
 
     if (
@@ -217,6 +218,7 @@ def main():
         pathology_reconstruction = reconstruction_config.get("pathology", None)
         sampling_mask = reconstruction_config.get("sampling_mask", "radial")
         type_reconstruction = reconstruction_config.get("type", "T2")
+        reconstruction_results_path = reconstruction_config.get("results_path", None)
 
         reconstruction_cfg = reconstruction_config["model"][0]
 
@@ -249,8 +251,8 @@ def main():
         evaluation=True,
         sampling_mask=sampling_mask,
     )
-
-    if results_path is None:
+    
+    if classifier_results_path is None:
         # Process and evaluate classification
         classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
 
@@ -260,30 +262,32 @@ def main():
         # Save results to output directory
         classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
     else:
-        classifier_results_df = pd.read_csv(results_path)
+        classifier_results_df = pd.read_csv(classifier_results_path)
 
     # Evaluate predictions
     classifier_evaluation(
-        classifier_results_df, classifiers, output_path
+        classifier_results_df, classifiers, age_bins, output_path
     )
 
-    """
     if reconstruction is None:
         print("No reconstruction model specified. Skipping reconstruction evaluation.")
         return
     # Process reconstruction 
 
-    # Process and evaluate reconstruction
-    reconstruction_results = reconstruction_predictions(data_root, metadata, reconstruction, num_reconstruction_samples, reconstruction_iterator)
+    if reconstruction_results_path is None:
+        # Process and evaluate reconstruction
+        reconstruction_results = reconstruction_predictions(data_root, reconstruction_dataset, metadata, reconstruction, num_reconstruction_samples)
 
-    # Create DataFrame for results
-    reconstruction_results_df = pd.DataFrame(reconstruction_results)
+        # Create DataFrame for results
+        reconstruction_results_df = pd.DataFrame(reconstruction_results)
 
-    # Save results to output directory
-    reconstruction_results_df.to_csv(os.path.join(output_path, f"{output_name}_reconstruction_results.csv"), index=False)
+        # Save results to output directory
+        reconstruction_results_df.to_csv(os.path.join(output_path, f"{output_name}_reconstruction_results.csv"), index=False)
+    else: 
+        reconstruction_results_df = pd.read_csv(reconstruction_results_path)
 
     # Evaluate predictions
-    reconstruction_evaluation(reconstruction_results_df, reconstruction, output_path)"""
+    reconstruction_evaluation(reconstruction_results_df, reconstruction, age_bins, output_path)
 
 
 if __name__ == "__main__":

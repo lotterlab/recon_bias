@@ -40,6 +40,10 @@ class VGGReconstructionNetwork(nn.Module):
     def forward(self, x):
         x = self.vgg(x)
         return x
+    
+    @property
+    def name(self):
+        return "VGG"
 
 
 class VGGAutoEncoder(nn.Module):

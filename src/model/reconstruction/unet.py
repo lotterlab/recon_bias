@@ -87,3 +87,7 @@ class UNet(nn.Module):
         outputs = self.outputs(u4)
 
         return outputs
+
+    @property
+    def name(self):
+        return 'UNet'

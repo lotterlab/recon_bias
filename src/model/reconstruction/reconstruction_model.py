@@ -25,7 +25,7 @@ class ReconstructionModel(ModelWrapper):
 
     @property
     def name(self):
-        return "ReconstructionModel"
+        return "UNet"
 
     def target_transformation(self, y):
         return y
@@ -78,13 +78,19 @@ class ReconstructionModel(ModelWrapper):
 
     @property
     def evaluation_groups(self):
-        return ["age", "sex"]
-
-    @property
-    def plot_config(self):
-        return {
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex"), (["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age"), (["sex", "age_bin"], {
             "x": "sex",
             "x_label": "Sex",
             "facet_col": "age_bin", 
             "facet_col_label": "Age Group",
-        }
+        }, "sex_age")]

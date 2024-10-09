@@ -63,7 +63,7 @@ def process_patient_data(
         patient_info[f"{classifier_name}_gt"] = patient_gt
         patient_info[f"{classifier_name}_pred"] = majority_class_pred
 
-        average_class_score = np.mean(patient_class_scores)
+        average_class_score = np.median(patient_class_scores)
         patient_gt_score = float(patient_gt)
         patient_info[f"{classifier_name}_gt_score"] = patient_gt_score
         patient_info[f"{classifier_name}_pred_score"] = average_class_score
@@ -71,7 +71,7 @@ def process_patient_data(
         majority_recon_pred = majority_voting(patient_recon_predictions)
         patient_info[f"{classifier_name}_recon"] = majority_recon_pred
 
-        average_recon_score = np.mean(patient_recon_scores)
+        average_recon_score = np.median(patient_recon_scores)
         patient_info[f"{classifier_name}_recon_score"] = average_recon_score
 
     return patient_info
