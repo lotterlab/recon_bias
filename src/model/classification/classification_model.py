@@ -370,7 +370,7 @@ class NLLSurvClassifier(ClassifierModel):
             return bootstrap(gt, pred, recon, concordance_index)
         except ZeroDivisionError:
             print("Warning: No admissible pairs in the data.")
-            return 0.5
+            return 1
     
     def _risk_score(self, logits):
         haz = logits.sigmoid() + self.eps

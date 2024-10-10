@@ -3,7 +3,7 @@ output_dir: "./output"
 output_name: "evaluation"
 seed: 42
 os_bins: 4 
-age_bins: [0, 60, 100]
+age_bins: [0, 58, 100]
 reconstruction: 
   results_path: "./output/reconstruction-csv_20241008_161359/reconstruction-csv_20241008_161359_reconstruction_results.csv" #If specified predictions will be loaded from this path
   lower_slice: 60

@@ -30,7 +30,7 @@ def hypothesis_test(col1, col2, test_type="auto"):
 
     # Check if the columns have any variation (needed for statistical testing)
     if np.all(col1 == col1.iloc[0]) or np.all(col2 == col2.iloc[0]):
-        return np.nan  # Return NaN if there is no variation
+        return 1  # Return NaN if there is no variation
 
     # Automatically determine the type of test based on data or use provided test type
     if test_type == "auto":
@@ -53,4 +53,4 @@ def hypothesis_test(col1, col2, test_type="auto"):
 
     except Exception as e:
         # Return NaN if any error occurs (e.g., invalid data)
-        return np.nan
+        return 1

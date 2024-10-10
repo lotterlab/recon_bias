@@ -3,7 +3,7 @@ output_dir: "./output"
 output_name: "performance-accuracy-aggregation"
 seed: 42
 os_bins: 4 
-age_bins: [0, 60, 100]
+age_bins: [0, 68, 100]
 #num_samples: 5
 classifiers:
   lower_slice: 60

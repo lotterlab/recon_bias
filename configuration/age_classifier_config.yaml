@@ -12,7 +12,7 @@ type: 'T2'
 pathology: ["edema","non_enhancing"]
 lower_slice: 60
 upper_slice: 130
-age_bins: [0, 60, 100]
+age_bins: [0, 58, 100]
 
 classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'
