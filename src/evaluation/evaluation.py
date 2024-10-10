@@ -484,7 +484,7 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
     output_dir = os.path.join(output_dir, reconstruction["name"])
 
     # Categorize 'age' into bins
-    df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=True)
+    df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=False)
     performance_metrics = [("psnr", "PSNR"), ("ssim", "SSIM"), ("nrmse", "NRSME")]
     print(f"Evaluating reconstruction ...")
 
