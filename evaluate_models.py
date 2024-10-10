@@ -84,7 +84,7 @@ def load_classifier(
     # Add network to classifier
     model.set_network(network)
 
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, weights_only=True))
     model.network.eval()
 
     return model
@@ -105,7 +105,7 @@ def load_reconstruction_model(network_type, model_path, device) -> torch.nn.Modu
 
     model.set_network(network)
 
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, weights_only=True))
     model.network.eval()
 
     return model

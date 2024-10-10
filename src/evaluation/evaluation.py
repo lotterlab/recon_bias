@@ -300,6 +300,8 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
 
         for (group, plot_config, group_name) in classifier["model"].evaluation_groups:
 
+            print(f"Grouping by {group_name}...")
+
             output_dir = os.path.join(base_dir, classifier_name, group_name)
 
             x = plot_config["x"]
