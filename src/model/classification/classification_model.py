@@ -126,7 +126,7 @@ class TTypeBCEClassifier(ClassifierModel):
 
     @property
     def performance_metric_input_value(self):
-        "score"
+        return "score"
 
     @property
     def evaluation_groups(self):
@@ -208,7 +208,7 @@ class TGradeBCEClassifier(ClassifierModel):
 
     @property
     def performance_metric_input_value(self):
-        "score"
+        return "score"
 
     @property
     def evaluation_groups(self):
@@ -333,7 +333,7 @@ class NLLSurvClassifier(ClassifierModel):
 
     @property
     def performance_metric_input_value(self):
-        "score"
+        return "score"
 
     @property
     def evaluation_groups(self):
@@ -444,7 +444,17 @@ class AgeCEClassifier(ClassifierModel):
             "x_label": "Sex",
             "facet_col": None, 
             "facet_col_label": None,
-        }, "sex")]
+        }, "sex"), (["age_bin"], {
+            "x": "age_bin",
+            "x_label": "Age Group",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "age"), (["sex", "age_bin"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }, "sex_age")]
 
     @property
     def num_classes(self):
@@ -516,16 +526,26 @@ class GenderBCEClassifier(ClassifierModel):
 
     @property
     def performance_metric_input_value(self):
-        "score"
+        return "score"
 
     @property
     def evaluation_groups(self):
-        return [(["age_bin"], {
+        return [(["sex"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": None, 
+            "facet_col_label": None,
+        }, "sex"), (["age_bin"], {
             "x": "age_bin",
             "x_label": "Age Group",
             "facet_col": None, 
             "facet_col_label": None,
-        }, "age")]
+        }, "age"), (["sex", "age_bin"], {
+            "x": "sex",
+            "x_label": "Sex",
+            "facet_col": "age_bin", 
+            "facet_col_label": "Age Group",
+        }, "sex_age")]
 
     @property
     def num_classes(self):

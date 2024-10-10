@@ -291,7 +291,7 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
     age_bins, age_labels = get_age_bins(df, age_bins)
 
     # Categorize 'age' into bins
-    df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=True)
+    df["age_bin"] = pd.cut(df["age"], bins=age_bins, labels=age_labels, right=False)
     base_dir = output_dir
 
     for classifier in classifiers:
@@ -512,7 +512,7 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
                 x,
                 x_label,
                 "value",
-                "Classifier True Predictions",
+                performance_metric_label,
                 "metric",
                 "Legend",
                 {},
