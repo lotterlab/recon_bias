@@ -2,7 +2,6 @@
 Classifier wrappers for both training and evaluation.
 """
 
-
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -78,19 +77,35 @@ class ReconstructionModel(ModelWrapper):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]

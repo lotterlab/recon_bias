@@ -90,4 +90,4 @@ class UNet(nn.Module):
 
     @property
     def name(self):
-        return 'UNet'
+        return "UNet"

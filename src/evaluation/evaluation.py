@@ -1,13 +1,14 @@
 import os
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
+from PIL import Image, ImageDraw, ImageFont
+from plotly.subplots import make_subplots
 from scipy.stats import ttest_ind
-import matplotlib.pyplot as plt
 
 from src.utils.hypothesis_test import hypothesis_test
-from plotly.subplots import make_subplots
-from PIL import Image, ImageDraw, ImageFont
+
 
 def grouped_bar_chart(
     df,
@@ -96,7 +97,11 @@ def grouped_bar_chart(
         y="value",
         color="metric",
         barmode="group",
-        labels={x: "", y: "", color: color_label},  # Keep labels empty to avoid showing the column name
+        labels={
+            x: "",
+            y: "",
+            color: color_label,
+        },  # Keep labels empty to avoid showing the column name
         text=y,  # Display the y values as text on the bars
         title=overall_title,
     )
@@ -107,7 +112,7 @@ def grouped_bar_chart(
         uniformtext_mode="hide",
         title_x=0.5,
         xaxis_title=None,  # Explicitly set 'Overall' as the x-axis title
-        showlegend=True  # Show legend for the overall plot
+        showlegend=True,  # Show legend for the overall plot
     )
 
     fig_overall.update_traces(
@@ -153,7 +158,7 @@ def grouped_bar_chart(
 def get_age_bins(df, age_bins):
     """Adjust the age bins and labels to only include those present in the dataframe."""
     # Get the minimum and maximum age values from the data
-    age_labels = [f"{age_bins[i]}-{age_bins[i+1]-1}" for i in range(len(age_bins)-1)]
+    age_labels = [f"{age_bins[i]}-{age_bins[i+1]-1}" for i in range(len(age_bins) - 1)]
 
     adjusted_bins = age_bins.copy()
     adjusted_labels = age_labels.copy()
@@ -207,7 +212,9 @@ def apply_function_to_column_pairs(grouped_df, model, groups, metric, columns, f
             )
 
     # Calculate overall value
-    overall_group = grouped_df.obj  # Access the entire dataframe from the grouped object
+    overall_group = (
+        grouped_df.obj
+    )  # Access the entire dataframe from the grouped object
 
     for col1, col1_name, col2, col2_name in columns:
         gt = overall_group[f"{model['name']}_gt{appendix}"]
@@ -230,6 +237,7 @@ def apply_function_to_column_pairs(grouped_df, model, groups, metric, columns, f
     overall_df = pd.DataFrame(overall)
 
     return metrics_df, overall_df
+
 
 def apply_function_to_single_column(grouped_df, model, groups, metric, columns, func):
     """Calculate the significance between the GT and prediction/reconstruction values."""
@@ -264,7 +272,9 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
             )
 
     # Calculate overall value
-    overall_group = grouped_df.obj  # Access the entire dataframe from the grouped object
+    overall_group = (
+        grouped_df.obj
+    )  # Access the entire dataframe from the grouped object
 
     for col, col_name in columns:
         column = overall_group[f"{model['name']}_{col}{appendix}"]
@@ -286,6 +296,7 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
 
     return metrics_df, overall_df
 
+
 def classifier_evaluation(df, classifiers, age_bins, output_dir):
     """Evaluate the classifier predictions and generate visualizations."""
     age_bins, age_labels = get_age_bins(df, age_bins)
@@ -298,7 +309,7 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
         classifier_name = classifier["name"]
         print(f"Evaluating {classifier_name} predictions...")
 
-        for (group, plot_config, group_name) in classifier["model"].evaluation_groups:
+        for group, plot_config, group_name in classifier["model"].evaluation_groups:
 
             print(f"Grouping by {group_name}...")
 
@@ -313,13 +324,17 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
             grouped_df = df_copy.groupby(group, observed=False)
 
             # Classifier predictions with significance
-            metrics, overall = apply_function_to_single_column( 
+            metrics, overall = apply_function_to_single_column(
                 grouped_df,
                 classifier,
                 group,
                 "prediction",
-                [("gt", "Ground Truth"), ("pred", "Classifier on GT"), ("recon", "Classifier on Reconstruction")],
-                lambda x: x.mean()
+                [
+                    ("gt", "Ground Truth"),
+                    ("pred", "Classifier on GT"),
+                    ("recon", "Classifier on Reconstruction"),
+                ],
+                lambda x: x.mean(),
             )
             grouped_bar_chart(
                 metrics,
@@ -346,7 +361,12 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 "prediction",
                 [
                     ("gt", "GT", "pred", "Classifier on GT"),
-                    ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
+                    (
+                        "pred",
+                        "Classifier on GT",
+                        "recon",
+                        "Classifier on Reconstruction",
+                    ),
                     ("gt", "GT", "recon", "Classifier on Reconstruction"),
                 ],
                 f,
@@ -368,17 +388,20 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 facet_col_label,
             )
             # Classifier score with significance
-            metrics, overall = apply_function_to_single_column( 
+            metrics, overall = apply_function_to_single_column(
                 grouped_df,
                 classifier,
                 group,
                 "score",
-                [("pred", "Classifier on GT"), ("recon", "Classifier on Reconstruction")],
-                lambda x: x.mean()
+                [
+                    ("pred", "Classifier on GT"),
+                    ("recon", "Classifier on Reconstruction"),
+                ],
+                lambda x: x.mean(),
             )
             grouped_bar_chart(
                 metrics,
-                overall, 
+                overall,
                 x,
                 x_label,
                 "value",
@@ -400,7 +423,12 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 group,
                 "score",
                 [
-                    ("pred", "Classifier on GT", "recon", "Classifier on Reconstruction"),
+                    (
+                        "pred",
+                        "Classifier on GT",
+                        "recon",
+                        "Classifier on Reconstruction",
+                    ),
                 ],
                 f,
             )
@@ -488,9 +516,9 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
     performance_metrics = [("psnr", "PSNR"), ("ssim", "SSIM"), ("nrmse", "NRSME")]
     print(f"Evaluating reconstruction ...")
 
-    for (group, plot_config, group_name) in reconstruction["model"].evaluation_groups: 
+    for group, plot_config, group_name in reconstruction["model"].evaluation_groups:
 
-        for (performance_metric, performance_metric_label) in performance_metrics:
+        for performance_metric, performance_metric_label in performance_metrics:
             x = plot_config["x"]
             x_label = plot_config["x_label"]
             facet_col = plot_config.get("facet_col")
@@ -500,13 +528,13 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
             grouped_df = df_copy.groupby(group, observed=False)
 
             # Show performance metrics
-            metrics, overall = apply_function_to_single_column( 
+            metrics, overall = apply_function_to_single_column(
                 grouped_df,
                 reconstruction,
                 group,
                 "prediction",
-                [(performance_metric, performance_metric_label) ],
-                lambda x: x.mean()
+                [(performance_metric, performance_metric_label)],
+                lambda x: x.mean(),
             )
             grouped_bar_chart(
                 metrics,

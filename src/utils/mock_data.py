@@ -95,9 +95,7 @@ def get_mock_data(num_patients=10):
         "GenderBCEClassifier_recon": np.random.randint(
             0, 2, num_patients
         ),  # Random recon predictions
-        "GenderBCEClassifier_gt_score": np.random.random(
-            num_patients
-        ),  # Random scores
+        "GenderBCEClassifier_gt_score": np.random.random(num_patients),  # Random scores
         "GenderBCEClassifier_pred_score": np.random.random(
             num_patients
         ),  # Random scores

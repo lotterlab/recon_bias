@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 import numpy as np
 import pandas as pd
 import torch
@@ -10,7 +11,7 @@ def calculate_psnr(x: np.ndarray, y: np.ndarray, max_value: float = 1.0) -> floa
     """Calculate PSNR between two images."""
     mse = np.mean((x - y) ** 2)
     if mse == 0:
-        return float('inf')
+        return float("inf")
     return 20 * np.log10(max_value / np.sqrt(mse))
 
 
@@ -50,7 +51,9 @@ def process_patient_data(
             psnr_values.append(psnr_value)
 
             # SSIM Calculation
-            ssim_value = ssim_metric(y_np, pred_np, data_range=pred_np.max() - pred_np.min())
+            ssim_value = ssim_metric(
+                y_np, pred_np, data_range=pred_np.max() - pred_np.min()
+            )
             ssim_values.append(ssim_value)
 
             # NRMSE Calculation
@@ -92,7 +95,9 @@ def reconstruction_predictions(
             "sex": patient_df["sex"].iloc[0],
             "age": patient_df["age_at_mri"].iloc[0],
         }
-        patient_reconstruction_data = reconstruction_dataset.get_patient_data(patient_id)
+        patient_reconstruction_data = reconstruction_dataset.get_patient_data(
+            patient_id
+        )
         patient_prediction = process_patient_data(
             patient_info,
             patient_reconstruction_data,

@@ -130,22 +130,38 @@ class TTypeBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]
 
     @property
     def num_classes(self):
@@ -162,6 +178,7 @@ class TTypeBCEClassifier(ClassifierModel):
     def significance(self, gt, pred, recon):
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
 
 class TGradeBCEClassifier(ClassifierModel):
     """
@@ -212,22 +229,38 @@ class TGradeBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]
 
     @property
     def num_classes(self):
@@ -264,11 +297,11 @@ class NLLSurvClassifier(ClassifierModel):
     def criterion(self, logits, labels):
         """
         Custom criterion function with NaN checks added for debugging.
-        
+
         Args:
         logits: Model output logits.
         labels: Ground truth labels containing survival information.
-        
+
         Returns:
         Computed loss (mean) with NaN checks at each step.
         """
@@ -337,22 +370,38 @@ class NLLSurvClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]
 
     @property
     def num_classes(self):
@@ -371,11 +420,12 @@ class NLLSurvClassifier(ClassifierModel):
         except ZeroDivisionError:
             print("Warning: No admissible pairs in the data.")
             return 1
-    
+
     def _risk_score(self, logits):
         haz = logits.sigmoid() + self.eps
         sur = torch.cumprod(1 - haz, dim=1)
         return torch.sum(sur, dim=1)
+
 
 class AgeCEClassifier(ClassifierModel):
     """
@@ -384,7 +434,9 @@ class AgeCEClassifier(ClassifierModel):
 
     def __init__(self, age_bins):
         super().__init__()
-        self.loss = nn.CrossEntropyLoss() if len(age_bins) > 3 else nn.BCEWithLogitsLoss()
+        self.loss = (
+            nn.CrossEntropyLoss() if len(age_bins) > 3 else nn.BCEWithLogitsLoss()
+        )
         self.age_bins = age_bins
         self.age_labels = list(range(0, len(self.age_bins) - 1))
 
@@ -439,22 +491,38 @@ class AgeCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]
 
     @property
     def num_classes(self):
@@ -470,7 +538,7 @@ class AgeCEClassifier(ClassifierModel):
 
     def final_activation(self, logits):
         if len(self.age_bins) > 3:
-            logits =  torch.softmax(logits, dim=1)
+            logits = torch.softmax(logits, dim=1)
             _, preds = torch.max(logits, 1)
             return preds
         return torch.sigmoid(logits)
@@ -481,6 +549,7 @@ class AgeCEClassifier(ClassifierModel):
             return p_value
         p_value = delong_roc_test(gt, pred, recon)
         return p_value
+
 
 class GenderBCEClassifier(ClassifierModel):
     """
@@ -530,22 +599,38 @@ class GenderBCEClassifier(ClassifierModel):
 
     @property
     def evaluation_groups(self):
-        return [(["sex"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "sex"), (["age_bin"], {
-            "x": "age_bin",
-            "x_label": "Age Group",
-            "facet_col": None, 
-            "facet_col_label": None,
-        }, "age"), (["sex", "age_bin"], {
-            "x": "sex",
-            "x_label": "Sex",
-            "facet_col": "age_bin", 
-            "facet_col_label": "Age Group",
-        }, "sex_age")]
+        return [
+            (
+                ["sex"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "sex",
+            ),
+            (
+                ["age_bin"],
+                {
+                    "x": "age_bin",
+                    "x_label": "Age Group",
+                    "facet_col": None,
+                    "facet_col_label": None,
+                },
+                "age",
+            ),
+            (
+                ["sex", "age_bin"],
+                {
+                    "x": "sex",
+                    "x_label": "Sex",
+                    "facet_col": "age_bin",
+                    "facet_col_label": "Age Group",
+                },
+                "sex_age",
+            ),
+        ]
 
     @property
     def num_classes(self):

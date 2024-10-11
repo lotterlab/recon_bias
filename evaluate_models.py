@@ -16,12 +16,12 @@ from src.evaluation.classifier_prediction import classifier_predictions
 from src.evaluation.evaluation import (classifier_evaluation,
                                        reconstruction_evaluation)
 from src.evaluation.reconstruction_prediction import reconstruction_predictions
-from src.model.classification.classification_model import (ClassifierModel,
+from src.model.classification.classification_model import (AgeCEClassifier,
+                                                           ClassifierModel,
+                                                           GenderBCEClassifier,
                                                            NLLSurvClassifier,
                                                            TGradeBCEClassifier,
-                                                           TTypeBCEClassifier, 
-                                                           AgeCEClassifier,
-                                                           GenderBCEClassifier)
+                                                           TTypeBCEClassifier)
 from src.model.classification.resnet_classification_network import \
     ResNetClassifierNetwork
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
@@ -44,6 +44,7 @@ def set_seed(seed):
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
     return pd.read_csv(metadata_path)
+
 
 def load_classifier(
     classifier_type: str, network_type: str, model_path: str, device, config, dataset
@@ -176,7 +177,7 @@ def main():
         pathology=pathology_classifier,
         lower_slice=lower_slice_classifier,
         upper_slice=upper_slice_classifier,
-        age_bins=age_bins, 
+        age_bins=age_bins,
         os_bins=os_bins,
         evaluation=True,
     )
@@ -188,7 +189,12 @@ def main():
         network_type = classifier_cfg["network"]
         model_path = classifier_cfg["model_path"]
         classifier = load_classifier(
-            classifier_type, network_type, model_path, device, classifier_cfg, classifier_dataset
+            classifier_type,
+            network_type,
+            model_path,
+            device,
+            classifier_cfg,
+            classifier_dataset,
         )
         classifiers.append({"model": classifier, "name": classifier_type})
 
@@ -251,43 +257,63 @@ def main():
         evaluation=True,
         sampling_mask=sampling_mask,
     )
-    
+
     if classifier_results_path is None:
         # Process and evaluate classification
-        classifier_results = classifier_predictions(data_root, classifier_dataset, reconstruction_dataset, metadata, classifiers, reconstruction["model"], num_classifier_samples)
+        classifier_results = classifier_predictions(
+            data_root,
+            classifier_dataset,
+            reconstruction_dataset,
+            metadata,
+            classifiers,
+            reconstruction["model"],
+            num_classifier_samples,
+        )
 
         # Create DataFrame for results
         classifier_results_df = pd.DataFrame(classifier_results)
 
         # Save results to output directory
-        classifier_results_df.to_csv(os.path.join(output_path, f"{output_name}_classifier_results.csv"), index=False)
+        classifier_results_df.to_csv(
+            os.path.join(output_path, f"{output_name}_classifier_results.csv"),
+            index=False,
+        )
     else:
         classifier_results_df = pd.read_csv(classifier_results_path)
 
     # Evaluate predictions
-    classifier_evaluation(
-        classifier_results_df, classifiers, age_bins, output_path
-    )
+    classifier_evaluation(classifier_results_df, classifiers, age_bins, output_path)
 
     if reconstruction is None:
         print("No reconstruction model specified. Skipping reconstruction evaluation.")
         return
-    # Process reconstruction 
+    # Process reconstruction
 
     if reconstruction_results_path is None:
         # Process and evaluate reconstruction
-        reconstruction_results = reconstruction_predictions(data_root, reconstruction_dataset, metadata, reconstruction, num_reconstruction_samples)
+        reconstruction_results = reconstruction_predictions(
+            data_root,
+            reconstruction_dataset,
+            metadata,
+            reconstruction,
+            num_reconstruction_samples,
+        )
 
         # Create DataFrame for results
         reconstruction_results_df = pd.DataFrame(reconstruction_results)
 
         # Save results to output directory
-        reconstruction_results_df.to_csv(os.path.join(output_path, f"{output_name}_reconstruction_results.csv"), index=False)
-    else: 
+        reconstruction_results_df.to_csv(
+            os.path.join(output_path, f"{output_name}_reconstruction_results.csv"),
+            index=False,
+        )
+    else:
         reconstruction_results_df = pd.read_csv(reconstruction_results_path)
 
     # Evaluate predictions
-    reconstruction_evaluation(reconstruction_results_df, reconstruction, age_bins, output_path)
+    reconstruction_evaluation(
+        reconstruction_results_df, reconstruction, age_bins, output_path
+    )
 
 
 if __name__ == "__main__":
