@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import Dataset
 
 from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
+from torch.utils.data import WeightedRandomSampler
 
 
 class ClassificationDataset(Dataset):
@@ -28,6 +29,7 @@ class ClassificationDataset(Dataset):
         evaluation=False,
         age_bins=[0, 3, 18, 42, 67, 96],
         os_bins=4,
+        classifier_type=None,
     ):
         """
         Initialize the MRIDataset.
@@ -52,6 +54,7 @@ class ClassificationDataset(Dataset):
         self.age_bins = age_bins
         self.os_bins = os_bins
         self.os_bin_size = self._get_highest_dead_os() // self.os_bins
+        self.classifier_type = classifier_type
         self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -166,3 +169,31 @@ class ClassificationDataset(Dataset):
         os = row["os"]
 
         return os
+    
+    def get_class_labels(self):
+        """Returns the class labels for each sample in the dataset."""
+        class_labels = [extract_labels_from_row(row, self.age_bins) for row in self.metadata.iter_rows(named=True)]
+        class_labels_tensor = torch.stack(class_labels)
+        return class_labels_tensor
+    
+def create_balanced_sampler(dataset, classifier):
+    """Creates a WeightedRandomSampler for balanced class sampling."""
+    dataset_class_labels = dataset.get_class_labels()
+
+    class_labels = classifier.target_transformation(dataset_class_labels)
+
+    # Count occurrences of each class (assuming binary or multi-class)
+    class_counts = np.bincount(class_labels)
+    class_weights = 1.0 / class_counts
+
+    # Create weights for each sample based on its class
+    sample_weights = np.array([class_weights[int(label)] for label in class_labels])
+
+    # Create a WeightedRandomSampler
+    sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(sample_weights),
+        replacement=True  # Sample with replacement to ensure balanced sampling
+    )
+    
+    return sampler

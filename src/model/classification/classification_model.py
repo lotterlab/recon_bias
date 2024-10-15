@@ -582,6 +582,7 @@ class GenderBCEClassifier(ClassifierModel):
         return roc_auc_score(y, x)
 
     def epoch_performance_metric(self, x, y):
+        x = x.detach().numpy()
         target_transform = self.target_transformation(y)
         return self.evaluation_performance_metric(x, target_transform), 1
 

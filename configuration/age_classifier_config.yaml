@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'age-60'
+output_name: 'age-rebalanced'
 save_interval: 1
 
 num_epochs: 20
@@ -13,6 +13,7 @@ pathology: ["edema","non_enhancing"]
 lower_slice: 60
 upper_slice: 130
 age_bins: [0, 58, 100]
+balancing: True
 
 classifier_type: 'AgeCEClassifier'  # Options: 'TTypeBCEClassifier', 'TGradeBCEClassifier', 'NLLSurvClassifier' 'AgeCEClassifier', 'GenderBCEClassifier'
 network_type: 'ResNet18'  # Options: 'ResNet18', 'ResNet50'

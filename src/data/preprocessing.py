@@ -135,7 +135,7 @@ def process_patient_folder(
                         slice_id,
                         width,
                         height,
-                        patient_metadata["sex"],
+                        patient_metadata["sex"], # 5
                         patient_metadata["age_at_mri"],
                         patient_metadata["who_cns_grade"],
                         patient_metadata["final_diagnosis"],

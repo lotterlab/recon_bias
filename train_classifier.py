@@ -8,7 +8,7 @@ import yaml
 from torch.utils.data import DataLoader
 
 # Import your dataset, models, and trainer
-from src.data.classification_dataset import ClassificationDataset
+from src.data.classification_dataset import ClassificationDataset, create_balanced_sampler
 from src.model.classification.classification_model import (AgeCEClassifier,
                                                            GenderBCEClassifier,
                                                            NLLSurvClassifier,
@@ -55,6 +55,7 @@ def main():
     upper_slice = config.get("upper_slice", None)
     os_bins = config.get("os_bins", 4)
     age_bins = config.get("age_bins", [0, 3, 18, 42, 67, 96])
+    balancing = config.get("balancing", False)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -88,6 +89,7 @@ def main():
         upper_slice=upper_slice,
         age_bins=age_bins,
         os_bins=os_bins,
+        classifier_type=classifier_type,
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -101,13 +103,7 @@ def main():
         upper_slice=upper_slice,
         age_bins=age_bins,
         os_bins=os_bins,
-    )
-
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
-    )
-    val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4
+        classifier_type=classifier_type,
     )
 
     # Device configuration
@@ -131,7 +127,24 @@ def main():
 
     model = model.to(device)
 
-    # Model
+    train_sampler = None
+    val_sampler = None
+    shuffle = True
+
+    if balancing:
+        print("Balancing the dataset.")
+        train_sampler = create_balanced_sampler(train_dataset, classifier=model)
+        val_sampler = create_balanced_sampler(val_dataset, classifier=model)
+        shuffle = False
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4, sampler=train_sampler
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, sampler=val_sampler
+    )
+
+    # Network
     if network_type == "ResNet18":
         network = ResNetClassifierNetwork(num_classes=model.num_classes)
     elif network_type == "ResNet50":
