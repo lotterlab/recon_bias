@@ -24,10 +24,6 @@ class ClassifierModel(ModelWrapper):
 
     def __init__(self):
         super().__init__()
-        self.network = None
-
-    def set_network(self, network):
-        self.network = network
 
     def forward(self, x):
         return self.network(x)

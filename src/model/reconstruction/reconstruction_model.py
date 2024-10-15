@@ -24,7 +24,7 @@ class ReconstructionModel(ModelWrapper):
 
     @property
     def name(self):
-        return "UNet"
+        return self.network.__class__.__name__
 
     def target_transformation(self, y):
         return y
