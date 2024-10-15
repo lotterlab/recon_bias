@@ -40,6 +40,7 @@ Specific classifier parameters are:
 - **os_bins** (optional): Number of bins for overall survival classification (default: 4).
 - **age_bins** (optional): Age bins for age classification (default: [0, 3, 18, 42, 67, 96]).
 - **eps** (optional): Small constant for numerical stability in survival classification (default: 1e-8).
+- **balancing** (optional): Specifies if the dataset should be rebalanced during training.
 
 #### Reconstruction
 To train a reconstruction model, run `python train_reconstruction.py -c <path to configuration file>`. 
