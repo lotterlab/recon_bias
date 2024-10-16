@@ -16,3 +16,5 @@ plotly
 kaleido
 fastmri
 lifelines
+pillow 
+pdf2image

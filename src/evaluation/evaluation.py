@@ -27,9 +27,9 @@ def grouped_bar_chart(
     facet_col_label=None,
     facet_row=None,
     facet_row_label=None,
+    error_y=None
 ):
     """Create a grouped bar chart with an additional bar plot representing overall performance."""
-
     # Split the title at "grouped by" and create new titles
     if "grouped by" in title:
         title_parts = title.split("grouped by")
@@ -46,26 +46,37 @@ def grouped_bar_chart(
     # Define labels for the plot
     labels = {x: x_label, y: y_label, color: color_label, facet_col: facet_col_label}
 
-    if facet_row:
+    # Add facet labels only if they are valid (not None)
+    if facet_row is not None and facet_row_label is not None:
         labels[facet_row] = facet_row_label
 
-    if facet_col:
+    if facet_col is not None and facet_col_label is not None:
         labels[facet_col] = facet_col_label
 
+    # Dynamically prepare the kwargs for px.bar
+    bar_chart_kwargs = {
+        "x": x,
+        "y": y,
+        "color": color,
+        "barmode": "group",
+        "category_orders": category_order,
+        "labels": labels,
+        "text": y,
+        "title": title,
+    }
+
+    # Add facet_col and facet_row only if they are valid (not None)
+    if facet_row is not None:
+        bar_chart_kwargs["facet_row"] = facet_row
+
+    if facet_col is not None:
+        bar_chart_kwargs["facet_col"] = facet_col
+
+    if error_y is not None:
+        bar_chart_kwargs["error_y"] = error_y
+
     # Create the detailed grouped bar chart using Plotly
-    fig_bar = px.bar(
-        df,
-        x=x,
-        y=y,
-        color=color,
-        barmode="group",
-        facet_col=facet_col,
-        facet_row=facet_row,
-        category_orders=category_order,
-        labels=labels,
-        text=y,  # Display the y values as text on the bars
-        title=title,
-    )
+    fig_bar = px.bar(df, **bar_chart_kwargs)
 
     # Ensure the numbers on the axis display correctly
     fig_bar.update_layout(
@@ -90,20 +101,27 @@ def grouped_bar_chart(
     bar_chart_path = os.path.join(output_dir, "temp_bar_chart.png")
     fig_bar.write_image(bar_chart_path)
 
-    # Create the overall performance bar chart using Plotly
-    fig_overall = px.bar(
-        overall_df,
-        x="overall",  # This is the data column
-        y="value",
-        color="metric",
-        barmode="group",
-        labels={
+    bar_chart_kwargs = {
+        "x": "overall",
+        "y": "value",
+        "color": "metric",
+        "barmode": "group",
+        "labels": {
             x: "",
             y: "",
             color: color_label,
-        },  # Keep labels empty to avoid showing the column name
-        text=y,  # Display the y values as text on the bars
-        title=overall_title,
+        },
+        "text": y,
+        "title": overall_title,
+    }
+
+    if error_y is not None:
+        bar_chart_kwargs["error_y"] = error_y
+
+    # Create the overall performance bar chart using Plotly
+    fig_overall = px.bar(
+        overall_df,
+        **bar_chart_kwargs,
     )
 
     fig_overall.update_layout(
@@ -239,7 +257,7 @@ def apply_function_to_column_pairs(grouped_df, model, groups, metric, columns, f
     return metrics_df, overall_df
 
 
-def apply_function_to_single_column(grouped_df, model, groups, metric, columns, func):
+def apply_function_to_single_column(grouped_df, model, groups, metric, columns, func, error = None):
     """Calculate the significance between the GT and prediction/reconstruction values."""
     results = []
     overall = []
@@ -257,19 +275,26 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
             # Calculate significance between the two columns
             result = func(column)
 
+            error_result = None
+            if error:
+                error_result = error(column)
+
             # Append the results
             if isinstance(group_keys, tuple):
                 group_info = {col: val for col, val in zip(groups, group_keys)}
             else:
                 group_info = {groups[0]: group_keys}
 
-            results.append(
-                {
+            dict = {
                     **group_info,  # Add the group info (sex, age_bin, etc.)
                     "metric": f"{col_name}",
                     "value": result,
                 }
-            )
+            
+            if error_result:
+                dict["error"] = error_result
+
+            results.append(dict)
 
     # Calculate overall value
     overall_group = (
@@ -282,13 +307,22 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
         # Calculate overall significance
         overall_result = func(column)
 
+        error_result = None
+        if error:
+            error_result = error(column)
+
         # Append the overall result with a special "overall" label for group
-        overall.append(
-            {
+        dict = {
                 "overall": "",  # Mark as overall group
                 "metric": f"{col_name}",
                 "value": overall_result,
             }
+        
+        if error_result:
+            dict["error"] = error_result
+
+        overall.append(
+            dict
         )
 
     metrics_df = pd.DataFrame(results)
@@ -337,20 +371,20 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 lambda x: x.mean(),
             )
             grouped_bar_chart(
-                metrics,
-                overall,
-                x,
-                x_label,
-                "value",
-                "Classifier True Predictions",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} predictions grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_predictions_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=metrics,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label="Classifier True Predictions",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} predictions grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_predictions_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
             )
 
             f = lambda gt, y, x: hypothesis_test(y, x)
@@ -372,20 +406,20 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 f,
             )
             grouped_bar_chart(
-                significance_results,
-                overall,
-                x,
-                x_label,
-                "value",
-                "Classifier Predictions Significance",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} predictions significance grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_predictions_significance_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=significance_results,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label="Classifier Predictions Significance",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} predictions significance grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_predictions_significance_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
             )
             # Classifier score with significance
             metrics, overall = apply_function_to_single_column(
@@ -398,22 +432,25 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                     ("recon", "Classifier on Reconstruction"),
                 ],
                 lambda x: x.mean(),
+                lambda x: x.std()
             )
+
             grouped_bar_chart(
-                metrics,
-                overall,
-                x,
-                x_label,
-                "value",
-                "Classifier Score Predictions",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} score grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_score_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=metrics,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label="Classifier Score Predictions",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} score grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_score_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
+                error_y="error"
             )
 
             f = lambda gt, y, x: hypothesis_test(y, x)
@@ -432,21 +469,22 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 ],
                 f,
             )
+
             grouped_bar_chart(
-                significance_results,
-                overall,
-                x,
-                x_label,
-                "value",
-                "Classifier Score Significance",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} score significance grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_score_significance_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=significance_results,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label="Classifier Score Significance",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} score significance grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_score_significance_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
             )
 
             # Classifier performance metrics with significance
@@ -463,20 +501,20 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 f,
             )
             grouped_bar_chart(
-                metrics,
-                overall,
-                x,
-                x_label,
-                "value",
-                f"{classifier['model'].performance_metric_name}",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} {classifier['model'].performance_metric_name} grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_performance_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=metrics,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label=f"{classifier['model'].performance_metric_name}",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} {classifier['model'].performance_metric_name} grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_performance_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
             )
 
             significance_results, overall = apply_function_to_column_pairs(
@@ -488,20 +526,20 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 classifier["model"].significance,
             )
             grouped_bar_chart(
-                significance_results,
-                overall,
-                x,
-                x_label,
-                "value",
-                f"{classifier['model'].performance_metric_name} significance",
-                "metric",
-                "Legend",
-                {},
-                f"{classifier_name} {classifier['model'].performance_metric_name} significance grouped by {group_name}",
-                output_dir,
-                f"{classifier_name}_performance_significance_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=significance_results,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label=f"{classifier['model'].performance_metric_name} significance",
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{classifier_name} {classifier['model'].performance_metric_name} significance grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{classifier_name}_performance_significance_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
             )
 
 
@@ -535,20 +573,22 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
                 "prediction",
                 [(performance_metric, performance_metric_label)],
                 lambda x: x.mean(),
+                lambda x: x.std()
             )
             grouped_bar_chart(
-                metrics,
-                overall,
-                x,
-                x_label,
-                "value",
-                performance_metric_label,
-                "metric",
-                "Legend",
-                {},
-                f"{reconstruction['name']} performance grouped by {group_name}",
-                output_dir,
-                f"{reconstruction['name']}_{performance_metric_label}_{group_name}.png",
-                facet_col,
-                facet_col_label,
+                df=metrics,
+                overall_df=overall,
+                x=x,
+                x_label=x_label,
+                y="value",
+                y_label=performance_metric_label,
+                color="metric",
+                color_label="Legend",
+                category_order={},
+                title=f"{reconstruction['name']} performance grouped by {group_name}",
+                output_dir=output_dir,
+                output_name=f"{reconstruction['name']}_{performance_metric}_{group_name}.png",
+                facet_col=facet_col,
+                facet_col_label=facet_col_label,
+                error_y="error"
             )
