@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'unet-rebalanced'
+output_name: 'unet-gender-rebalanced'
 save_interval: 1
 
 num_epochs: 20

@@ -105,6 +105,7 @@ def main():
     )
 
     val_sampler = None 
+    train_sampler = None
     shuffle = True
 
     if rebalancing is not None:
