@@ -10,11 +10,9 @@ import torch
 from fastmri import fft2c, ifft2c, tensor_to_complex_np
 from torch.utils.data import Dataset
 from fastmri.data.subsample import RandomMaskFunc
+from src.data.dataset import BaseDataset
 
-from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
-
-
-class ReconstructionDataset(Dataset):
+class ReconstructionDataset(BaseDataset):
     """Classification dataset to load MRI images"""
 
     def __init__(
@@ -26,10 +24,11 @@ class ReconstructionDataset(Dataset):
         split: Optional[str] = "train",
         type: Optional[str] = "T2",
         pathology: Optional[list] = None,
-        sampling_mask: Optional[str] = "radial",
         lower_slice=None,
         upper_slice=None,
         evaluation=False,
+        age_bins=[0, 68, 100],
+        sampling_mask: Optional[str] = "radial",
     ):
         """
         Initialize the MRIDataset.
@@ -40,53 +39,8 @@ class ReconstructionDataset(Dataset):
             number_of_samples (Optional[int]): The number of samples to use.
             seed (Optional[int]): The seed for reproducibility.
         """
-        self.data_root: pathlib.Path = data_root
-        self.transform = transform
-        self.number_of_samples = number_of_samples
-        self.seed = seed
-        self.split = split
-        self.metadata: pl.LazyFrame = pl.scan_csv(data_root + "/metadata.csv")
-        self.type = type
-        self.pathology = pathology
         self.sampling_mask = sampling_mask
-        self.lower_slice = lower_slice
-        self.upper_slice = upper_slice
-        self.evaluation = evaluation
-        self._prepare_metadata()
-
-    def _prepare_metadata(self):
-        """Prepare the metadata for the dataset.
-
-        This is done by creating a DataFrame that contains the metadata and paths to the relevant files.
-
-        Returns:
-            None
-        """
-        self.metadata = self.metadata.filter(pl.col("split") == self.split)
-        self.metadata = self.metadata.filter(pl.col("type") == self.type)
-
-        # Filter by pathology OR
-        if (
-            self.pathology and len(self.pathology) > 0
-        ):  # Ensure pathology list is not empty
-            pathology_filter = pl.col(self.pathology[0]) == True
-            for path in self.pathology[1:]:
-                pathology_filter |= pl.col(path) == True
-
-            self.metadata = self.metadata.filter(pathology_filter)
-
-        if self.lower_slice:
-            self.metadata = self.metadata.filter(pl.col("slice_id") >= self.lower_slice)
-
-        if self.upper_slice:
-            self.metadata = self.metadata.filter(pl.col("slice_id") <= self.upper_slice)
-
-        if self.number_of_samples and not self.evaluation:
-            self.metadata = self.metadata.collect().sample(
-                n=self.number_of_samples, seed=self.seed
-            )
-        else:
-            self.metadata = self.metadata.collect()
+        super().__init__(data_root=data_root, transform=transform, number_of_samples=number_of_samples, seed=seed, split=split, type=type, pathology=pathology, lower_slice=lower_slice, upper_slice=upper_slice, evaluation=evaluation, age_bins=age_bins)
 
     def convert_to_complex(self, image_slice):
         """
@@ -226,14 +180,6 @@ class ReconstructionDataset(Dataset):
         undersampled_slice = fastmri.complex_abs(undersampled_slice)
 
         return undersampled_slice
-
-    def __len__(self):
-        return len(self.metadata)
-
-    def __getitem__(self, idx: int):
-        row = self.metadata.row(idx, named=True)
-
-        return self._get_item_from_row(row)
 
     def _get_item_from_row(self, row):
         # Load np array from file

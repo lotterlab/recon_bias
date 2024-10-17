@@ -15,6 +15,9 @@ from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
+from src.model.classification.classification_model import (AgeCEClassifier,
+                                                           GenderBCEClassifier,)
+from src.data.dataset import create_balanced_sampler
 
 
 def main():
@@ -51,6 +54,8 @@ def main():
     sampling_mask = config.get("sampling_mask", "radial")
     lower_slice = config.get("lower_slice", None)
     upper_slice = config.get("upper_slice", None)
+    rebalancing = config.get("rebalancing", None)
+    age_bins = config.get("age_bins", [0, 58, 100])
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -83,6 +88,7 @@ def main():
         sampling_mask=sampling_mask,
         lower_slice=lower_slice,
         upper_slice=upper_slice,
+        age_bins=age_bins,
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
@@ -95,13 +101,26 @@ def main():
         sampling_mask=sampling_mask,
         lower_slice=lower_slice,
         upper_slice=upper_slice,
+        age_bins=age_bins,
     )
 
+    val_sampler = None 
+    shuffle = True
+
+    if rebalancing is not None:
+        shuffle = False
+        if rebalancing == "Age": 
+            model = AgeCEClassifier(age_bins=age_bins)
+            val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
+        elif rebalancing == "Gender":
+            model = GenderBCEClassifier()
+            val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
+
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=1
+        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1, sampler=val_sampler
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=1
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=1, sampler=val_sampler
     )
 
     # Device configuration

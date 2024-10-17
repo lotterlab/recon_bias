@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'unet'
+output_name: 'unet-rebalanced'
 save_interval: 1
 
 num_epochs: 20
@@ -10,6 +10,8 @@ data_root: '../../data/UCSF-PDGM'
 type: 'T2'
 lower_slice: 60
 upper_slice: 130
+rebalancing: "Age"
+age_bins: [0, 58, 100]
 
 network_type: 'UNet'
 sampling_mask: 'radial'

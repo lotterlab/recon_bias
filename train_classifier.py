@@ -8,7 +8,8 @@ import yaml
 from torch.utils.data import DataLoader
 
 # Import your dataset, models, and trainer
-from src.data.classification_dataset import ClassificationDataset, create_balanced_sampler
+from src.data.classification_dataset import ClassificationDataset
+from src.data.dataset import create_balanced_sampler
 from src.model.classification.classification_model import (AgeCEClassifier,
                                                            GenderBCEClassifier,
                                                            NLLSurvClassifier,
@@ -89,7 +90,6 @@ def main():
         upper_slice=upper_slice,
         age_bins=age_bins,
         os_bins=os_bins,
-        classifier_type=classifier_type,
     )
     val_dataset = ClassificationDataset(
         data_root=data_root,
@@ -103,7 +103,6 @@ def main():
         upper_slice=upper_slice,
         age_bins=age_bins,
         os_bins=os_bins,
-        classifier_type=classifier_type,
     )
 
     # Device configuration
