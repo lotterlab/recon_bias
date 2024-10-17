@@ -111,13 +111,15 @@ def main():
         shuffle = False
         if rebalancing == "Age": 
             model = AgeCEClassifier(age_bins=age_bins)
+            train_sampler = create_balanced_sampler(dataset=train_dataset, classifier=model)
             val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
         elif rebalancing == "Gender":
             model = GenderBCEClassifier()
+            train_sampler = create_balanced_sampler(dataset=train_dataset, classifier=model)
             val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1, sampler=val_sampler
+        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1, sampler=train_sampler
     )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False, num_workers=1, sampler=val_sampler

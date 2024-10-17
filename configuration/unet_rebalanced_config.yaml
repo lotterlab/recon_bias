@@ -11,7 +11,7 @@ data_root: '../../data/UCSF-PDGM'
 type: 'T2'
 lower_slice: 60
 upper_slice: 130
-rebalancing: "Age"
+rebalancing: "Gender"
 age_bins: [0, 58, 100]
 
 network_type: 'UNet'
