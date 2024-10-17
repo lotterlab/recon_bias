@@ -9,6 +9,7 @@ import polars as pl
 import torch
 from fastmri import fft2c, ifft2c, tensor_to_complex_np
 from torch.utils.data import Dataset
+from fastmri.data.subsample import RandomMaskFunc
 
 from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
 
@@ -152,6 +153,26 @@ class ReconstructionDataset(Dataset):
 
         return undersampled_kspace
 
+    def apply_linear_mask_to_kspace(self, kspace):
+        """
+        Apply a linear mask to the k-space data.
+
+        Parameters:
+        - kspace: The complex k-space data to mask
+
+        Returns:
+        - undersampled_kspace: The undersampled k-space data
+        """
+        H, W, _ = kspace.shape
+        mask_func = RandomMaskFunc(center_fractions=[0.1], accelerations=[6])  # 4x undersampling
+        mask = mask_func(kspace.shape, seed=None)[0]  # Extract the mask
+        mask = mask.to(kspace.device).unsqueeze(-1)  # Ensure mask has an extra dimension for complex part
+        
+        # Apply mask to k-space (zero out k-space lines)
+        undersampled_kspace = kspace * mask
+
+        return undersampled_kspace
+
     def undersample_image_with_radial_mask(self, image_tensor):
         """
         Undersample an MRI image using a radial mask on the k-space.
@@ -177,9 +198,28 @@ class ReconstructionDataset(Dataset):
 
         return undersampled_image
 
+    def undersample_image_with_linear_mask(self, image_tensor):
+                # Convert real slice to complex-valued tensor
+        complex_slice = self.convert_to_complex(image_tensor)
+
+        # Perform Fourier transform to go from image space to k-space
+        kspace = fft2c(complex_slice)  # Apply center Fourier transform
+
+        # Apply radial mask to k-space
+        undersampled_kspace = self.apply_linear_mask_to_kspace(kspace)
+
+        # Reconstruct the undersampled image by performing the inverse Fourier transform
+        undersampled_image = ifft2c(undersampled_kspace)
+
+        undersampled_image = undersampled_image.squeeze(0)
+
+        return undersampled_image
+
     def undersample_slice(self, slice: torch.Tensor) -> torch.Tensor:
         if self.sampling_mask == "radial":
             undersampled_slice = self.undersample_image_with_radial_mask(slice)
+        elif self.sampling_mask == "linear":
+            undersampled_slice = self.undersample_image_with_linear_mask(slice)
         else:
             raise ValueError("Sampling mask not recognized")
 
