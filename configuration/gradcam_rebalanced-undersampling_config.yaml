@@ -1,22 +1,18 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
-output_name: "evaluation-rebalanced-unet40-plots"
+output_name: "gradcam-rebalanced-undersampling"
 seed: 42
 os_bins: 4 
 age_bins: [0, 58, 100]
+patient_ids: ["UCSF-PDGM-445", "UCSF-PDGM-253", "UCSF-PDGM-053", "UCSF-PDGM-076", "UCSF-PDGM-113", "UCSF-PDGM-318", "UCSF-PDGM-414", "UCSF-PDGM-133"]
 reconstruction: 
-  lower_slice: 60
-  upper_slice: 130
   sampling_mask: "radial"
   type: "T2"
   pathology: ["edema","non_enhancing"]
   model: 
     - network: "UNet"
-      model_path: "../../models/unet-40_20241017_144114/checkpoints/unet-40_20241017_144114_epoch_6_best.pth"
+      model_path: "TODO"
 classifiers:
-  results_path: "./output/evaluation-rebalanced-unet40-plots_20241018_133256/evaluation-rebalanced-unet40-plots_20241018_133256_classifier_results.csv"
-  lower_slice: 60
-  upper_slice: 130
   type: "T2"
   pathology: ["edema","non_enhancing"]
   models: 

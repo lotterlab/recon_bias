@@ -1,6 +1,6 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
-output_name: "evaluation-rebalanced-unet40-plots"
+output_name: "evaluation-rebalanced-unet-linear-plots"
 seed: 42
 os_bins: 4 
 age_bins: [0, 58, 100]
@@ -12,9 +12,8 @@ reconstruction:
   pathology: ["edema","non_enhancing"]
   model: 
     - network: "UNet"
-      model_path: "../../models/unet-40_20241017_144114/checkpoints/unet-40_20241017_144114_epoch_6_best.pth"
+      model_path: "../../models/unet-linear_20241017_145102/checkpoints/unet-linear_20241017_145102_epoch_10_best.pth"
 classifiers:
-  results_path: "./output/evaluation-rebalanced-unet40-plots_20241018_133256/evaluation-rebalanced-unet40-plots_20241018_133256_classifier_results.csv"
   lower_slice: 60
   upper_slice: 130
   type: "T2"
