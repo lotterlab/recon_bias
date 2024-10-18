@@ -7,7 +7,7 @@ age_bins: [0, 58, 100]
 reconstruction: 
   lower_slice: 60
   upper_slice: 130
-  sampling_mask: "radial"
+  sampling_mask: "linear"
   type: "T2"
   pathology: ["edema","non_enhancing"]
   model: 

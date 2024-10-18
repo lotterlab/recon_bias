@@ -5,7 +5,6 @@ seed: 42
 os_bins: 4 
 age_bins: [0, 58, 100]
 reconstruction: 
-  results_path: "./output/evaluation-rebalanced-unet40-plots_20241018_162848/evaluation-rebalanced-unet40-plots_20241018_162848_reconstruction_results.csv"
   lower_slice: 60
   upper_slice: 130
   sampling_mask: "radial"
@@ -15,7 +14,6 @@ reconstruction:
     - network: "UNet"
       model_path: "../../models/unet-40_20241017_144114/checkpoints/unet-40_20241017_144114_epoch_6_best.pth"
 classifiers:
-  results_path: "./output/evaluation-rebalanced-unet40-plots_20241018_133256/evaluation-rebalanced-unet40-plots_20241018_133256_classifier_results.csv"
   lower_slice: 60
   upper_slice: 130
   type: "T2"
