@@ -5,6 +5,7 @@ seed: 42
 os_bins: 4 
 age_bins: [0, 58, 100]
 reconstruction: 
+  results_path: "./output/evaluation-rebalanced-unet40-plots_20241018_162848/evaluation-rebalanced-unet40-plots_20241018_162848_reconstruction_results.csv"
   lower_slice: 60
   upper_slice: 130
   sampling_mask: "radial"
