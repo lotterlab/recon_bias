@@ -204,8 +204,8 @@ def process_patient(
     y_class = classifier_model(x)
     x_recon, _ = patient_reconstruction_data[slice]
     x_recon = x_recon.unsqueeze(0)
-    y_recon = classifier_model(x_recon)
     reconstructed_image = reconstruction_model(x_recon)
+    y_recon = classifier_model(reconstructed_image)
 
     gt_img = transforms.ToPILImage()(x.squeeze().cpu())
     result = apply_gradcam(classifier_model, x, index)
