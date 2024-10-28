@@ -10,13 +10,16 @@ from torch.utils.data import DataLoader
 # Import your dataset, models, and trainer
 from src.data.classification_dataset import ClassificationDataset
 from src.data.dataset import create_balanced_sampler
-from src.model.classification.classification_model import (AgeCEClassifier,
-                                                           GenderBCEClassifier,
-                                                           NLLSurvClassifier,
-                                                           TGradeBCEClassifier,
-                                                           TTypeBCEClassifier)
-from src.model.classification.resnet_classification_network import \
-    ResNetClassifierNetwork
+from src.model.classification.classification_model import (
+    AgeCEClassifier,
+    GenderBCEClassifier,
+    NLLSurvClassifier,
+    TGradeBCEClassifier,
+    TTypeBCEClassifier,
+)
+from src.model.classification.resnet_classification_network import (
+    ResNetClassifierNetwork,
+)
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
@@ -137,10 +140,18 @@ def main():
         shuffle = False
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=4, sampler=train_sampler
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=4,
+        sampler=train_sampler,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, sampler=val_sampler
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=4,
+        sampler=val_sampler,
     )
 
     # Network

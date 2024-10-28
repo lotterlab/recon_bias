@@ -34,7 +34,12 @@ def hypothesis_test(col1, col2, test_type="auto"):
 
     # Automatically determine the type of test based on data or use provided test type
     if test_type == "auto":
-        if col1.dtype == np.int64 or col2.dtype == np.int64 or col1.dtype == bool or col2.dtype == bool:
+        if (
+            col1.dtype == np.int64
+            or col2.dtype == np.int64
+            or col1.dtype == bool
+            or col2.dtype == bool
+        ):
             test_type = "chi2"
         else:
             test_type = "t-test"

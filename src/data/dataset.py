@@ -1,15 +1,19 @@
-from abc import ABC, abstractmethod
-from torch.utils.data import Dataset
-from typing import Callable, Optional     
-import polars as pl
-from torch.utils.data import WeightedRandomSampler
-import torch
-import numpy as np
 import pathlib
+from abc import ABC, abstractmethod
+from typing import Callable, Optional
+
+import numpy as np
+import polars as pl
+import torch
+from torch.utils.data import Dataset, WeightedRandomSampler
+
 from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
 
+
 class BaseDataset(Dataset, ABC):
-    def __init__(self, data_root: pathlib.Path,
+    def __init__(
+        self,
+        data_root: pathlib.Path,
         transform: Optional[Callable] = None,
         number_of_samples: Optional[int] = 0,
         seed: Optional[int] = 31415,
@@ -19,7 +23,8 @@ class BaseDataset(Dataset, ABC):
         lower_slice=None,
         upper_slice=None,
         evaluation=False,
-        age_bins=[0, 68, 100]):
+        age_bins=[0, 68, 100],
+    ):
         self.data_root = data_root
         self.transform = transform
         self.number_of_samples = number_of_samples
@@ -75,7 +80,7 @@ class BaseDataset(Dataset, ABC):
         row = self.metadata.row(idx, named=True)
 
         return self._get_item_from_row(row)
-    
+
     @abstractmethod
     def _get_item_from_row(self, row):
         pass
@@ -90,10 +95,14 @@ class BaseDataset(Dataset, ABC):
 
     def get_class_labels(self):
         """Returns the class labels for each sample in the dataset."""
-        class_labels = [extract_labels_from_row(row, self.age_bins) for row in self.metadata.iter_rows(named=True)]
+        class_labels = [
+            extract_labels_from_row(row, self.age_bins)
+            for row in self.metadata.iter_rows(named=True)
+        ]
         class_labels_tensor = torch.stack(class_labels)
         return class_labels_tensor
-    
+
+
 def create_balanced_sampler(dataset, classifier):
     """Creates a WeightedRandomSampler for balanced class sampling."""
     dataset_class_labels = dataset.get_class_labels()
@@ -111,7 +120,7 @@ def create_balanced_sampler(dataset, classifier):
     sampler = WeightedRandomSampler(
         weights=sample_weights,
         num_samples=len(sample_weights),
-        replacement=True  # Sample with replacement to ensure balanced sampling
+        replacement=True,  # Sample with replacement to ensure balanced sampling
     )
-    
+
     return sampler

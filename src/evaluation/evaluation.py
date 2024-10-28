@@ -27,7 +27,7 @@ def grouped_bar_chart(
     facet_col_label=None,
     facet_row=None,
     facet_row_label=None,
-    error_y=None
+    error_y=None,
 ):
     """Create a grouped bar chart with an additional bar plot representing overall performance."""
     # Split the title at "grouped by" and create new titles
@@ -257,7 +257,9 @@ def apply_function_to_column_pairs(grouped_df, model, groups, metric, columns, f
     return metrics_df, overall_df
 
 
-def apply_function_to_single_column(grouped_df, model, groups, metric, columns, func, error = None):
+def apply_function_to_single_column(
+    grouped_df, model, groups, metric, columns, func, error=None
+):
     """Calculate the significance between the GT and prediction/reconstruction values."""
     results = []
     overall = []
@@ -286,11 +288,11 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
                 group_info = {groups[0]: group_keys}
 
             dict = {
-                    **group_info,  # Add the group info (sex, age_bin, etc.)
-                    "metric": f"{col_name}",
-                    "value": result,
-                }
-            
+                **group_info,  # Add the group info (sex, age_bin, etc.)
+                "metric": f"{col_name}",
+                "value": result,
+            }
+
             if error_result:
                 dict["error"] = error_result
 
@@ -313,17 +315,15 @@ def apply_function_to_single_column(grouped_df, model, groups, metric, columns, 
 
         # Append the overall result with a special "overall" label for group
         dict = {
-                "overall": "",  # Mark as overall group
-                "metric": f"{col_name}",
-                "value": overall_result,
-            }
-        
+            "overall": "",  # Mark as overall group
+            "metric": f"{col_name}",
+            "value": overall_result,
+        }
+
         if error_result:
             dict["error"] = error_result
 
-        overall.append(
-            dict
-        )
+        overall.append(dict)
 
     metrics_df = pd.DataFrame(results)
     overall_df = pd.DataFrame(overall)
@@ -432,7 +432,7 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                     ("recon", "Classifier on Reconstruction"),
                 ],
                 lambda x: x.mean(),
-                lambda x: x.std()
+                lambda x: x.std(),
             )
 
             grouped_bar_chart(
@@ -450,7 +450,7 @@ def classifier_evaluation(df, classifiers, age_bins, output_dir):
                 output_name=f"{classifier_name}_score_{group_name}.png",
                 facet_col=facet_col,
                 facet_col_label=facet_col_label,
-                error_y="error"
+                error_y="error",
             )
 
             f = lambda gt, y, x: hypothesis_test(y, x)
@@ -573,7 +573,7 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
                 "prediction",
                 [(performance_metric, performance_metric_label)],
                 lambda x: x.mean(),
-                lambda x: x.std()
+                lambda x: x.std(),
             )
             grouped_bar_chart(
                 df=metrics,
@@ -590,5 +590,5 @@ def reconstruction_evaluation(df, reconstruction, age_bins, output_dir):
                 output_name=f"{reconstruction['name']}_{performance_metric}_{group_name}.png",
                 facet_col=facet_col,
                 facet_col_label=facet_col_label,
-                error_y="error"
+                error_y="error",
             )

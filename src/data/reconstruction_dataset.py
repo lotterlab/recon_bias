@@ -8,9 +8,11 @@ import numpy as np
 import polars as pl
 import torch
 from fastmri import fft2c, ifft2c, tensor_to_complex_np
-from torch.utils.data import Dataset
 from fastmri.data.subsample import RandomMaskFunc
+from torch.utils.data import Dataset
+
 from src.data.dataset import BaseDataset
+
 
 class ReconstructionDataset(BaseDataset):
     """Classification dataset to load MRI images"""
@@ -40,7 +42,19 @@ class ReconstructionDataset(BaseDataset):
             seed (Optional[int]): The seed for reproducibility.
         """
         self.sampling_mask = sampling_mask
-        super().__init__(data_root=data_root, transform=transform, number_of_samples=number_of_samples, seed=seed, split=split, type=type, pathology=pathology, lower_slice=lower_slice, upper_slice=upper_slice, evaluation=evaluation, age_bins=age_bins)
+        super().__init__(
+            data_root=data_root,
+            transform=transform,
+            number_of_samples=number_of_samples,
+            seed=seed,
+            split=split,
+            type=type,
+            pathology=pathology,
+            lower_slice=lower_slice,
+            upper_slice=upper_slice,
+            evaluation=evaluation,
+            age_bins=age_bins,
+        )
 
     def convert_to_complex(self, image_slice):
         """
@@ -118,10 +132,14 @@ class ReconstructionDataset(BaseDataset):
         - undersampled_kspace: The undersampled k-space data
         """
         H, W, _ = kspace.shape
-        mask_func = RandomMaskFunc(center_fractions=[0.1], accelerations=[6])  # 4x undersampling
+        mask_func = RandomMaskFunc(
+            center_fractions=[0.1], accelerations=[6]
+        )  # 4x undersampling
         mask = mask_func(kspace.shape, seed=None)[0]  # Extract the mask
-        mask = mask.to(kspace.device).unsqueeze(-1)  # Ensure mask has an extra dimension for complex part
-        
+        mask = mask.to(kspace.device).unsqueeze(
+            -1
+        )  # Ensure mask has an extra dimension for complex part
+
         # Apply mask to k-space (zero out k-space lines)
         undersampled_kspace = kspace * mask
 
@@ -153,7 +171,7 @@ class ReconstructionDataset(BaseDataset):
         return undersampled_image
 
     def undersample_image_with_linear_mask(self, image_tensor):
-                # Convert real slice to complex-valued tensor
+        # Convert real slice to complex-valued tensor
         complex_slice = self.convert_to_complex(image_tensor)
 
         # Perform Fourier transform to go from image space to k-space

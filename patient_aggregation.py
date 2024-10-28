@@ -15,17 +15,19 @@ from torch import nn
 from src.data.classification_dataset import ClassificationDataset
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.evaluation.classifier_prediction import classifier_predictions
-from src.evaluation.evaluation import (classifier_evaluation,
-                                       reconstruction_evaluation)
+from src.evaluation.evaluation import classifier_evaluation, reconstruction_evaluation
 from src.evaluation.reconstruction_prediction import reconstruction_predictions
-from src.model.classification.classification_model import (AgeCEClassifier,
-                                                           ClassifierModel,
-                                                           GenderBCEClassifier,
-                                                           NLLSurvClassifier,
-                                                           TGradeBCEClassifier,
-                                                           TTypeBCEClassifier)
-from src.model.classification.resnet_classification_network import \
-    ResNetClassifierNetwork
+from src.model.classification.classification_model import (
+    AgeCEClassifier,
+    ClassifierModel,
+    GenderBCEClassifier,
+    NLLSurvClassifier,
+    TGradeBCEClassifier,
+    TTypeBCEClassifier,
+)
+from src.model.classification.resnet_classification_network import (
+    ResNetClassifierNetwork,
+)
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs

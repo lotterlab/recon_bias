@@ -41,6 +41,7 @@ class VGGReconstructionNetwork(nn.Module):
         x = self.vgg(x)
         return x
 
+
 class VGGAutoEncoder(nn.Module):
     def __init__(self, configs):
         super(VGGAutoEncoder, self).__init__()

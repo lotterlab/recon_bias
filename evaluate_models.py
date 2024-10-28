@@ -13,17 +13,19 @@ from torch import nn
 from src.data.classification_dataset import ClassificationDataset
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.evaluation.classifier_prediction import classifier_predictions
-from src.evaluation.evaluation import (classifier_evaluation,
-                                       reconstruction_evaluation)
+from src.evaluation.evaluation import classifier_evaluation, reconstruction_evaluation
 from src.evaluation.reconstruction_prediction import reconstruction_predictions
-from src.model.classification.classification_model import (AgeCEClassifier,
-                                                           ClassifierModel,
-                                                           GenderBCEClassifier,
-                                                           NLLSurvClassifier,
-                                                           TGradeBCEClassifier,
-                                                           TTypeBCEClassifier)
-from src.model.classification.resnet_classification_network import \
-    ResNetClassifierNetwork
+from src.model.classification.classification_model import (
+    AgeCEClassifier,
+    ClassifierModel,
+    GenderBCEClassifier,
+    NLLSurvClassifier,
+    TGradeBCEClassifier,
+    TTypeBCEClassifier,
+)
+from src.model.classification.resnet_classification_network import (
+    ResNetClassifierNetwork,
+)
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
@@ -235,7 +237,10 @@ def main():
             reconstruction_model = load_reconstruction_model(
                 network_type, model_path, device
             )
-            reconstruction = {"model": reconstruction_model, "name": reconstruction_model.name}
+            reconstruction = {
+                "model": reconstruction_model,
+                "name": reconstruction_model.name,
+            }
         else:
             print(
                 "Reconstruction model configuration is incomplete or missing required fields."
@@ -280,9 +285,6 @@ def main():
         )
     else:
         classifier_results_df = pd.read_csv(classifier_results_path)
-
-    for col in classifier_results_df.columns:
-        print(f"Column {col} has datatype: {classifier_results_df[col].dtype}")
 
     # Evaluate predictions
     classifier_evaluation(classifier_results_df, classifiers, age_bins, output_path)

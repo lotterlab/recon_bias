@@ -1,8 +1,7 @@
 import torch
 import torchvision
 from torch import nn
-from torchvision.models import (ResNet18_Weights, ResNet50_Weights, resnet18,
-                                resnet50)
+from torchvision.models import ResNet18_Weights, ResNet50_Weights, resnet18, resnet50
 
 
 class ResNetClassifierNetwork(nn.Module):

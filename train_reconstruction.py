@@ -8,16 +8,19 @@ import yaml
 from torch import nn
 from torch.utils.data import DataLoader
 
+from src.data.dataset import create_balanced_sampler
+
 # Import your dataset, models, and trainer
 from src.data.reconstruction_dataset import ReconstructionDataset
+from src.model.classification.classification_model import (
+    AgeCEClassifier,
+    GenderBCEClassifier,
+)
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
-from src.model.classification.classification_model import (AgeCEClassifier,
-                                                           GenderBCEClassifier,)
-from src.data.dataset import create_balanced_sampler
 
 
 def main():
@@ -104,26 +107,38 @@ def main():
         age_bins=age_bins,
     )
 
-    val_sampler = None 
+    val_sampler = None
     train_sampler = None
     shuffle = True
 
     if rebalancing is not None:
         shuffle = False
-        if rebalancing == "Age": 
+        if rebalancing == "Age":
             model = AgeCEClassifier(age_bins=age_bins)
-            train_sampler = create_balanced_sampler(dataset=train_dataset, classifier=model)
+            train_sampler = create_balanced_sampler(
+                dataset=train_dataset, classifier=model
+            )
             val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
         elif rebalancing == "Gender":
             model = GenderBCEClassifier()
-            train_sampler = create_balanced_sampler(dataset=train_dataset, classifier=model)
+            train_sampler = create_balanced_sampler(
+                dataset=train_dataset, classifier=model
+            )
             val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1, sampler=train_sampler
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=1,
+        sampler=train_sampler,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=1, sampler=val_sampler
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=1,
+        sampler=val_sampler,
     )
 
     # Device configuration

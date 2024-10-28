@@ -1,39 +1,43 @@
 import argparse
 import datetime
 import os
-import random
-import yaml
+from typing import List, Optional
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torchvision.transforms as transforms
+import yaml
+from PIL import Image
 from torchcam.methods import GradCAM
 from torchcam.utils import overlay_mask
-import cv2
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
+
 from src.data.classification_dataset import ClassificationDataset
 from src.data.dataset import create_balanced_sampler
-from src.model.classification.classification_model import (AgeCEClassifier,
-                                                           GenderBCEClassifier,
-                                                           NLLSurvClassifier,
-                                                           TGradeBCEClassifier,
-                                                           TTypeBCEClassifier, 
-                                                           ClassifierModel)
-from src.utils.transformations import min_max_slice_normalization
-from src.model.classification.resnet_classification_network import \
-    ResNetClassifierNetwork
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.evaluation.classifier_prediction import classifier_predictions
-import pandas as pd
+from src.model.classification.classification_model import (
+    AgeCEClassifier,
+    ClassifierModel,
+    GenderBCEClassifier,
+    NLLSurvClassifier,
+    TGradeBCEClassifier,
+    TTypeBCEClassifier,
+)
+from src.model.classification.resnet_classification_network import (
+    ResNetClassifierNetwork,
+)
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
-from typing import List, Optional
+from src.utils.transformations import min_max_slice_normalization
 
 
 def load_metadata(metadata_path: str) -> pd.DataFrame:
     return pd.read_csv(metadata_path)
+
 
 def load_classifier(
     classifier_type: str, network_type: str, model_path: str, device, config, dataset
@@ -100,6 +104,7 @@ def load_reconstruction_model(network_type, model_path, device) -> torch.nn.Modu
 
     return model
 
+
 def apply_gradcam(model, img_tensor, index):
     # Set the model to evaluation mode
     model.eval()
@@ -108,12 +113,14 @@ def apply_gradcam(model, img_tensor, index):
     resnet_model = model.network.classifier
 
     # Initialize the GradCAM extractor, targeting the last convolutional block in ResNet18
-    cam_extractor = GradCAM(resnet_model, target_layer='layer4')
+    cam_extractor = GradCAM(resnet_model, target_layer="layer4")
 
     # Forward pass through the model
     output = model(img_tensor)
 
-    cam_extractor(index, output, retain_graph=True)  # Ensure retain_graph is True to keep the computation graph
+    cam_extractor(
+        index, output, retain_graph=True
+    )  # Ensure retain_graph is True to keep the computation graph
 
     # Generate the activation map
     activation_map = cam_extractor(index, output)[0].cpu().detach().numpy()
@@ -138,47 +145,71 @@ def apply_gradcam(model, img_tensor, index):
     if len(activation_map.shape) == 2:
         heatmap = Image.fromarray(activation_map)
     else:
-        raise ValueError(f"Activation map is not 2D. Its shape is {activation_map.shape}")
+        raise ValueError(
+            f"Activation map is not 2D. Its shape is {activation_map.shape}"
+        )
 
     # Resize the heatmap to match the size of the original image
     heatmap = heatmap.resize(img_pil.size, resample=Image.BILINEAR)
 
     # Apply a colormap using Matplotlib
     colormap = plt.get_cmap("jet")
-    heatmap_colored = colormap(np.array(heatmap) / 255.0)  # Normalize to [0, 1] for colormap
+    heatmap_colored = colormap(
+        np.array(heatmap) / 255.0
+    )  # Normalize to [0, 1] for colormap
 
     # Convert to RGB and overlay on the original image
-    heatmap_colored = Image.fromarray((heatmap_colored[:, :, :3] * 255).astype(np.uint8))  # Drop alpha channel and convert to RGB
-    result = Image.blend(img_pil.convert("RGB"), heatmap_colored.convert("RGB"), alpha=0.5)  # Blend the two images
+    heatmap_colored = Image.fromarray(
+        (heatmap_colored[:, :, :3] * 255).astype(np.uint8)
+    )  # Drop alpha channel and convert to RGB
+    result = Image.blend(
+        img_pil.convert("RGB"), heatmap_colored.convert("RGB"), alpha=0.5
+    )  # Blend the two images
 
     return result
 
-def save_combined_image(patient_id, sex, age, gt_img, classifier_img, recon_img, classfier_name, output_path, gt, classifier, recon):
+
+def save_combined_image(
+    patient_id,
+    sex,
+    age,
+    gt_img,
+    classifier_img,
+    recon_img,
+    classfier_name,
+    output_path,
+    gt,
+    classifier,
+    recon,
+):
     """Combines the ground truth, classifier Grad-CAM, and reconstruction Grad-CAM images side by side."""
     # Create a new figure
     fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
     # Set the title including patient info
-    fig.suptitle(f"Classifier: {classfier_name}, Patient ID: {patient_id}, Sex: {sex}, Age: {age}")
+    fig.suptitle(
+        f"Classifier: {classfier_name}, Patient ID: {patient_id}, Sex: {sex}, Age: {age}"
+    )
 
     # Display each image in the subplot
     axs[0].imshow(gt_img)
     axs[0].set_title(f"Ground Truth, Prediction {gt}")
-    axs[0].axis('off')
+    axs[0].axis("off")
 
     axs[1].imshow(classifier_img)
     axs[1].set_title(f"Classifier Grad-CAM, Prediction {classifier}")
-    axs[1].axis('off')
+    axs[1].axis("off")
 
     axs[2].imshow(recon_img)
     axs[2].set_title(f"Reconstruction Grad-CAM, Prediction {recon}")
-    axs[2].axis('off')
+    axs[2].axis("off")
 
     # Save the figure
     filename = f"{classifier_name}_patientID_{patient_id}_Sex_{sex}_Age_{age}.png"
     plt.savefig(os.path.join(output_path, filename))
     plt.close(fig)
     print(f"Image saved: {os.path.join(output_path, filename)}")
+
 
 def process_patient(
     patient_info,
@@ -195,10 +226,10 @@ def process_patient(
 
     slice = len(patient_classification_data) // 2
 
-    x, y = patient_classification_data[slice] 
+    x, y = patient_classification_data[slice]
     x = x.unsqueeze(0)
     y = y.unsqueeze(0)
-    y_transformed = classifier_model.target_transformation(y).item(),
+    y_transformed = (classifier_model.target_transformation(y).item(),)
     y_transformed = y_transformed[0]
     index = 0 if classifier_model.num_classes <= 2 else y_transformed
     y_class = classifier_model(x)
@@ -212,17 +243,17 @@ def process_patient(
     result_recon = apply_gradcam(classifier_model, reconstructed_image, index)
 
     save_combined_image(
-        patient_info['patient_id'],
-        patient_info['sex'],
-        patient_info['age'],
+        patient_info["patient_id"],
+        patient_info["sex"],
+        patient_info["age"],
         gt_img,
         result,
         result_recon,
         classifier_name,
-        output_path, 
+        output_path,
         int(y_transformed),
         int(classifier_model.classification_criteria(y_class).item()),
-        int(classifier_model.classification_criteria(y_recon).item())
+        int(classifier_model.classification_criteria(y_recon).item()),
     )
 
 
@@ -238,7 +269,7 @@ def apply_gradcam_to_models(
     patient_predictions = []
 
     for _, row in patients.iterrows():
-        patient_id  = row["ID"]
+        patient_id = row["ID"]
         age = row["Age at MRI"]
         sex = row["Sex"]
         print(f"Processing patient {patient_id}...")
@@ -259,7 +290,7 @@ def apply_gradcam_to_models(
             patient_reconstruction_data,
             classifier,
             reconstruction_model,
-            output_path=data_root
+            output_path=data_root,
         )
 
     return patient_predictions
@@ -363,7 +394,6 @@ if __name__ == "__main__":
     reconstruction_results_path = None
     reconstruction = None
 
-
     num_reconstruction_samples = reconstruction_config.get("num_samples", None)
     pathology_reconstruction = reconstruction_config.get("pathology", None)
     sampling_mask = reconstruction_config.get("sampling_mask", "radial")
@@ -375,9 +405,7 @@ if __name__ == "__main__":
     network_type = reconstruction_cfg["network"]
     model_path = reconstruction_cfg["model_path"]
 
-    reconstruction_model = load_reconstruction_model(
-        network_type, model_path, device
-    )
+    reconstruction_model = load_reconstruction_model(network_type, model_path, device)
     reconstruction = {"model": reconstruction_model, "name": network_type}
 
     reconstruction_dataset = ReconstructionDataset(
@@ -400,9 +428,11 @@ if __name__ == "__main__":
         os.makedirs(classifier_output_path, exist_ok=True)
 
         # Apply Grad-CAM to the models
-        apply_gradcam_to_models(data_root=classifier_output_path,
-                                classification_dataset=classifier_dataset,
-                                reconstruction_dataset=reconstruction_dataset,
-                                patients=metadata,
-                                classifier=classifier,
-                                reconstruction_model=reconstruction_model)
+        apply_gradcam_to_models(
+            data_root=classifier_output_path,
+            classification_dataset=classifier_dataset,
+            reconstruction_dataset=reconstruction_dataset,
+            patients=metadata,
+            classifier=classifier,
+            reconstruction_model=reconstruction_model,
+        )

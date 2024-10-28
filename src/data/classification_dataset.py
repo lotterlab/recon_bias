@@ -6,9 +6,9 @@ import nibabel as nib
 import numpy as np
 import polars as pl
 import torch
-from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
 
 from src.data.dataset import BaseDataset
+from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
 
 
 class ClassificationDataset(BaseDataset):
@@ -39,7 +39,19 @@ class ClassificationDataset(BaseDataset):
             seed (Optional[int]): The seed for reproducibility.
         """
         self.os_bins = os_bins
-        super().__init__(data_root=data_root, transform=transform, number_of_samples=number_of_samples, seed=seed, split=split, type=type, pathology=pathology, lower_slice=lower_slice, upper_slice=upper_slice, evaluation=evaluation, age_bins=age_bins)
+        super().__init__(
+            data_root=data_root,
+            transform=transform,
+            number_of_samples=number_of_samples,
+            seed=seed,
+            split=split,
+            type=type,
+            pathology=pathology,
+            lower_slice=lower_slice,
+            upper_slice=upper_slice,
+            evaluation=evaluation,
+            age_bins=age_bins,
+        )
         self.os_bin_size = self._get_highest_dead_os() // self.os_bins
 
     def _get_item_from_row(self, row):
