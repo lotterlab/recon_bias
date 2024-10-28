@@ -281,6 +281,9 @@ def main():
     else:
         classifier_results_df = pd.read_csv(classifier_results_path)
 
+    for col in classifier_results_df.columns:
+        print(f"Column {col} has datatype: {classifier_results_df[col].dtype}")
+
     # Evaluate predictions
     classifier_evaluation(classifier_results_df, classifiers, age_bins, output_path)
 
