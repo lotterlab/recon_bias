@@ -9,6 +9,7 @@ import torch
 
 from src.data.dataset import BaseDataset
 from src.utils.labels import diagnosis_map, extract_labels_from_row, sex_map
+from torchvision import transforms
 
 
 class SegmentationDataset(BaseDataset):
@@ -60,18 +61,23 @@ class SegmentationDataset(BaseDataset):
         scan = nifti_img.get_fdata()
         slice = scan[:, :, row["slice_id"]]
         slice_tensor = torch.from_numpy(slice).float()
+        slice_tensor = slice_tensor.unsqueeze(0)
+
         if self.transform:
             slice_tensor = self.transform(slice_tensor)
 
-        segmentation_path = row["file_path"].replace(str.capitalize(self.type), "tumor_segmentation")
+        slice_tensor = transforms.Resize((224, 224))(slice_tensor)
+
+        segmentation_path = row["file_path"].replace(self.type, "tumor_segmentation")
+
         nifti_img = nib.load(self.data_root + "/" + segmentation_path)
         segmentation = nifti_img.get_fdata()
         segmentation_slice = segmentation[:, :, row["slice_id"]]
         segmentation_slice[segmentation_slice == 2] = 1
         segmentation_slice[segmentation_slice == 4] = 0
 
-        slice_tensor = slice_tensor.unsqueeze(0)
         segmentation_slice = torch.from_numpy(segmentation_slice).float().unsqueeze(0)
+        segmentation_slice = transforms.Resize((224, 224))(segmentation_slice)
 
         return slice_tensor, segmentation_slice
 
