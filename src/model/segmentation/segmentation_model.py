@@ -57,7 +57,8 @@ class SegmentationModel(ModelWrapper):
 
     def __init__(self):
         super().__init__()
-        self.loss = DiceLoss()
+        self.dice_loss = DiceLoss()
+        self.l1_loss = nn.L1Loss()
 
     @property
     def name(self):
@@ -67,7 +68,7 @@ class SegmentationModel(ModelWrapper):
         return y
 
     def criterion(self, x, y):
-        return self.loss(x, y)
+        return 0.5 * self.dice_loss(x, y) + 0.5 * self.l1_loss(x, y)
 
     def evaluation_performance_metric(self, x, y):
         return torch.tensor(0.0)
@@ -93,22 +94,25 @@ class SegmentationModel(ModelWrapper):
         y = y.squeeze()
         y_pred = y_pred.squeeze()
 
-        fig, ax = plt.subplots(1, 4, figsize=(10, 5))
+        fig, ax = plt.subplots(1, 5, figsize=(10, 5))
         ax[0].imshow(x.squeeze(), cmap="gray")
-        ax[0].set_title("Undersampled image")
+        ax[0].set_title("Image")
         ax[0].axis("off")
         ax[1].imshow(y.squeeze(), cmap="gray")
         ax[1].set_title("Original segmentation")
         ax[1].axis("off")
         ax[2].imshow(y_pred.squeeze(), cmap="gray")
-        ax[2].set_title("Predicted segmentation")
+        ax[2].set_title("Output logits")
         ax[2].axis("off")
-        ax[3].imshow(
+        ax[3].imshow(y_pred.squeeze() > 0.5, cmap="gray")
+        ax[3].set_title("Segmentation with threshold")
+        ax[3].axis("off")
+        ax[4].imshow(
             np.abs(y - y_pred),
             cmap="viridis",
         )
-        ax[3].set_title("Difference")
-        ax[3].axis("off")
+        ax[4].set_title("Difference")
+        ax[4].axis("off")
         plt.savefig(path)
         plt.close()
 

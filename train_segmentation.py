@@ -4,19 +4,35 @@ import os
 
 import torch
 import torchvision.transforms as transforms
+import torchvision.models as models
+import segmentation_models_pytorch as smp  # For pretrained UNet
 import yaml
 from torch import nn
 from torch.utils.data import DataLoader
 
 from src.data.dataset import create_balanced_sampler
-
-# Import your dataset, models, and trainer
 from src.data.segmentation_dataset import SegmentationDataset
 from src.model.segmentation.segmentation_model import SegmentationModel
 from src.model.segmentation.unet import UNet
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
+def get_model(model_type, device=None):
+    """
+    Initialize and return the specified model (pretrained UNet or ResNet).
+    Ensures single-channel input (grayscale) and single-channel output.
+    """
+
+    model = smp.Unet(
+        in_channels = 1,
+        classes=1,
+        encoder_name='resnet34',
+        encoder_depth=5, encoder_weights=None,
+        decoder_channels=(256, 128, 64, 32, 16),
+        activation = 'sigmoid'
+        )
+    
+    return model.to(device)
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -112,16 +128,13 @@ def main():
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Initialize the network
+    network = get_model(device)
+
     # Classifier
     model = SegmentationModel()
-    model = model.to(device)
-
-    network = UNet()
-
-    network = network.to(device)
-
-    # Add network to classifier
     model.set_network(network)
+    model = model.to(device)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
