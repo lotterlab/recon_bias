@@ -28,7 +28,6 @@ class SegmentationDataset(BaseDataset):
         upper_slice=None,
         evaluation=False,
         age_bins=[0, 68, 100],
-        os_bins=4,
     ):
         """
         Initialize the MRIDataset.
@@ -39,7 +38,6 @@ class SegmentationDataset(BaseDataset):
             number_of_samples (Optional[int]): The number of samples to use.
             seed (Optional[int]): The seed for reproducibility.
         """
-        self.os_bins = os_bins
         super().__init__(
             data_root=data_root,
             transform=transform,

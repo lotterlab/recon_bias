@@ -14,6 +14,7 @@ from ..model_wrapper import ModelWrapper
 import torch
 import torch.nn as nn
 
+
 class DiceLoss(nn.Module):
     def __init__(self, epsilon=1e-6):
         """
@@ -35,16 +36,16 @@ class DiceLoss(nn.Module):
         """
         # Apply sigmoid to predictions if they're logits
         predictions = torch.sigmoid(predictions)
-        
+
         # Flatten tensors to compute per-channel dice loss
         predictions = predictions.view(predictions.size(0), -1)
         targets = targets.view(targets.size(0), -1)
-        
+
         # Compute Dice Score
         intersection = (predictions * targets).sum(dim=1)
         union = predictions.sum(dim=1) + targets.sum(dim=1)
-        dice_score = (2. * intersection + self.epsilon) / (union + self.epsilon)
-        
+        dice_score = (2.0 * intersection + self.epsilon) / (union + self.epsilon)
+
         # Dice Loss
         dice_loss = 1 - dice_score.mean()
         return dice_loss

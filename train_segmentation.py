@@ -17,6 +17,7 @@ from src.model.segmentation.unet import UNet
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
+
 def get_model(model_type, device=None):
     """
     Initialize and return the specified model (pretrained UNet or ResNet).
@@ -24,15 +25,17 @@ def get_model(model_type, device=None):
     """
 
     model = smp.Unet(
-        in_channels = 1,
+        in_channels=1,
         classes=1,
-        encoder_name='resnet34',
-        encoder_depth=5, encoder_weights=None,
+        encoder_name="resnet34",
+        encoder_depth=5,
+        encoder_weights=None,
         decoder_channels=(256, 128, 64, 32, 16),
-        activation = 'sigmoid'
-        )
-    
+        activation="sigmoid",
+    )
+
     return model.to(device)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
