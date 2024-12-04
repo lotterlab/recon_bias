@@ -1,0 +1,26 @@
+data_root: "../../data/UCSF-PDGM"
+output_dir: "./output"
+output_name: "evaluation-segmentation-graphs-tgrade"
+results_path: "/lotterlab/users/matteo/code/recon_bias/output/evaluation-segmentation-csv-tgrade_20241203_093105/evaluation-segmentation-csv-tgrade_20241203_093105_results.csv"
+type: "FLAIR"
+pathology: ["edema","non_enhancing"]
+seed: 42
+age_bins: [0, 58, 100]
+lower_slice: 60
+upper_slice: 130
+num_samples: 100
+reconstruction: 
+  sampling_mask: "radial"
+  models: 
+    - network: "UNet"
+      name: "four"
+      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-4-only_20241202_154601/checkpoints/unet-4-only_20241202_154601_epoch_16_best.pth"
+    - network: "UNet"
+      name: "Mix"
+      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-tgrade-mix_20241202_160455/checkpoints/unet-tgrade-mix_20241202_160455_epoch_17_best.pth"
+    - network: "UNet"
+      name: "smaller-four"
+      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-s4-only_20241202_155803/checkpoints/unet-s4-only_20241202_155803_epoch_14_best.pth"
+segmentation:
+    model_path: "/lotterlab/users/matteo/models/segmentation_skews/segmentation_20241126_225621/checkpoints/segmentation_20241126_225621_epoch_11.pth"
+

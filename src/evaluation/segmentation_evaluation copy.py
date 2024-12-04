@@ -251,10 +251,6 @@ def apply_function_to_single_column(
 def individual_evaluation(df, segmentation_model, reconstruction_models, output_dir):
     base_dir = output_dir
     objectives = ["dice", "sum"]
-
-    # Create a new column for grouping based on WHO CNS Grade
-    df["grade_group"] = df["WHO CNS Grade"].apply(lambda x: "<4" if x < 4 else "4")
-
     for reconstruction_info in reconstruction_models: 
         name = reconstruction_info["name"]
         output_dir = os.path.join(base_dir, name)
@@ -262,13 +258,13 @@ def individual_evaluation(df, segmentation_model, reconstruction_models, output_
 
         for objective in objectives:
 
-            x = "grade_group"  # Update grouping key
-            x_label = "Grade Group (<4 or 4)"  # Update x-axis label
+            x = "sex"
+            x_label = "Sex"
             facet_col = None
             facet_col_label = None
 
             df_copy = df.copy()
-            grouped_df = df_copy.groupby("grade_group", observed=False)  # Update grouping key
+            grouped_df = df_copy.groupby("sex", observed=False)
 
             cols = [
                         ("gt_sum", "Ground Truth (GT)"),
@@ -281,7 +277,7 @@ def individual_evaluation(df, segmentation_model, reconstruction_models, output_
 
             metrics, overall_metrics = apply_function_to_single_column(
                     grouped_df,
-                    "grade_group",  # Update grouping key
+                    "sex",
                     cols,
                     lambda x: x.mean(),
                     lambda x: x.std(),
@@ -314,7 +310,7 @@ def individual_evaluation(df, segmentation_model, reconstruction_models, output_
             # significance
             significance, overall_significance = apply_function_to_column_pairs(
                 grouped_df,
-                "grade_group",  # Update grouping key
+                "sex", 
                 cols,
                 lambda x, y: hypothesis_test(y, x))
             
