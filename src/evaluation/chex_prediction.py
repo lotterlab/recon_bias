@@ -73,6 +73,8 @@ def process_patient_data(
     
     x_class = classification_data["img"]
     x_class = torch.tensor(x_class, dtype=torch.float32).unsqueeze(0)
+    y_class = classification_data["lab"]
+    y_class = torch.tensor(y_class, dtype=torch.float32).squeeze()
 
     x_recon, y_recon = reconstruction_data
     x_recon = x_recon.unsqueeze(0)
@@ -97,8 +99,10 @@ def process_patient_data(
         if gt != 0 and gt != 1:
             continue
 
-        if gt != classification_data["lab"][i]:
-            print(f"Error: GT mismatch for pathology {pathology} at index {i}")
+        if gt != y_class[i]:
+            print(f"Error: GT mismatch for pathology {pathology} at index {i} for row {row['Path']}, and classification data at {classification_data['path']}")
+            temp_paths = [(i, row[i]) for _, i in enumerate(pathologies)]
+            print(f"row: {temp_paths}, y_class: {y_class}")
         
         row_info = {
             "Path": row["Path"],

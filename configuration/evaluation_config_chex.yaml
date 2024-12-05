@@ -3,7 +3,6 @@ csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
 output_dir: "./output"
 output_name: "evaluation-chex-csv"
 seed: 42
-results_path: "/lotterlab/users/matteo/code/recon_bias/output/mock_pathology_data.csv"
 reconstruction: 
   model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-chex_20241204_162448/checkpoints/unet-chex_20241204_162448_epoch_6.pth"
 classifier:

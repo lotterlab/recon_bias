@@ -478,6 +478,7 @@ class CheX_Dataset(Dataset):
             #     print('Are you sure you dont want to use class balancing??')
         else:
             # Get our classes.
+            self.csv.sort_values(by='Path', inplace=True)
             healthy = self.csv["No Finding"] == 1
             self.labels = []
             for pathology in self.pathologies:
@@ -532,6 +533,7 @@ class CheX_Dataset(Dataset):
         sample = {}
         sample["idx"] = idx
         sample["lab"] = self.labels[idx]
+        sample["path"] = self.csv['Path'].iloc[idx]
 
         imgid = self.csv['Path'].iloc[idx]
         imgid = imgid.replace("CheXpert-v1.0-small/", "")
