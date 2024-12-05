@@ -40,6 +40,7 @@ def main():
 
     # Extract parameters from the configuration
     output_dir = config["output_dir"]
+    csv_path = config["csv_path"]
     output_name = config["output_name"]
     num_epochs = config["num_epochs"]
     learning_rate = config["learning_rate"]
@@ -52,13 +53,6 @@ def main():
     seed = config.get("seed", 31415)
     save_interval = config.get("save_interval", 1)
     early_stopping_patience = config.get("early_stopping_patience", None)
-    type = config.get("type", "T2")
-    pathology = config.get("pathology", None)
-    sampling_mask = config.get("sampling_mask", "radial")
-    lower_slice = config.get("lower_slice", None)
-    upper_slice = config.get("upper_slice", None)
-    rebalancing = config.get("rebalancing", None)
-    age_bins = config.get("age_bins", [0, 58, 100])
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -73,71 +67,38 @@ def main():
     with open(config_save_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
-    transform = transforms.Compose(
-        [
-            min_max_slice_normalization,
-        ]
-    )
-
     # Datasets and DataLoaders
     train_dataset = ReconstructionDataset(
         data_root=data_root,
-        transform=transform,
-        split="train",
+        csv_path=csv_path,
+        split="train_recon",
         number_of_samples=num_train_samples,
         seed=seed,
-        type=type,
-        pathology=pathology,
-        sampling_mask=sampling_mask,
-        lower_slice=lower_slice,
-        upper_slice=upper_slice,
-        age_bins=age_bins,
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
-        transform=transform,
-        split="val",
+        csv_path=csv_path,
+        split="val_recon",
         number_of_samples=num_val_samples,
         seed=seed,
-        type=type,
-        pathology=pathology,
-        sampling_mask=sampling_mask,
-        lower_slice=lower_slice,
-        upper_slice=upper_slice,
-        age_bins=age_bins,
     )
 
     val_sampler = None
     train_sampler = None
     shuffle = True
 
-    if rebalancing is not None:
-        shuffle = False
-        if rebalancing == "Age":
-            model = AgeCEClassifier(age_bins=age_bins)
-            train_sampler = create_balanced_sampler(
-                dataset=train_dataset, classifier=model
-            )
-            val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
-        elif rebalancing == "Gender":
-            model = GenderBCEClassifier()
-            train_sampler = create_balanced_sampler(
-                dataset=train_dataset, classifier=model
-            )
-            val_sampler = create_balanced_sampler(dataset=val_dataset, classifier=model)
-
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=1,
+        num_workers=8,
         sampler=train_sampler,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=1,
+        num_workers=8,
         sampler=val_sampler,
     )
 

@@ -1,0 +1,18 @@
+output_dir: './output'
+output_name: 'unet-chex'
+save_interval: 1
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 16
+early_stopping_patience: 5
+
+data_root: '/lotterlab/datasets/'
+csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
+type: 'T2'
+lower_slice: 60
+upper_slice: 130
+age_bins: [0, 58, 100]
+
+network_type: 'UNet'
+seed: 31415

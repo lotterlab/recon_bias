@@ -58,7 +58,7 @@ class ReconstructionModel(ModelWrapper):
 
         fig, ax = plt.subplots(1, 4, figsize=(10, 5))
         ax[0].imshow(x.squeeze(), cmap="gray")
-        ax[0].set_title("Undersampled")
+        ax[0].set_title("Low-Dose CT")
         ax[0].axis("off")
         ax[1].imshow(y.squeeze(), cmap="gray")
         ax[1].set_title("Original")

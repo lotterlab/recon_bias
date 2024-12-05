@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
 import numpy as np
-import polars as pl
+import pandas as pd
 import torch
 from torch.utils.data import Dataset, WeightedRandomSampler
 
@@ -14,29 +14,21 @@ class BaseDataset(Dataset, ABC):
     def __init__(
         self,
         data_root: pathlib.Path,
+        csv_path: pathlib.Path,
         transform: Optional[Callable] = None,
         number_of_samples: Optional[int] = 0,
         seed: Optional[int] = 31415,
         split: Optional[str] = "train",
-        type: Optional[str] = "T2",
-        pathology: Optional[list] = ["edema", "non_enhancing", "enhancing"],
-        lower_slice=None,
-        upper_slice=None,
         evaluation=False,
-        age_bins=[0, 68, 100],
     ):
         self.data_root = data_root
+        self.csv_path = csv_path
         self.transform = transform
         self.number_of_samples = number_of_samples
         self.seed = seed
         self.split = split
-        self.type = type
-        self.pathology = pathology
-        self.lower_slice = lower_slice
-        self.upper_slice = upper_slice
         self.evaluation = evaluation
-        self.age_bins = age_bins
-        self.metadata: pl.LazyFrame = pl.scan_csv(data_root + "/metadata.csv")
+        self.metadata = pd.read_csv(self.csv_path)
         self.data = self._prepare_metadata()
 
     def _prepare_metadata(self):
@@ -47,37 +39,26 @@ class BaseDataset(Dataset, ABC):
         Returns:
             None
         """
-        self.metadata = self.metadata.filter(pl.col("split") == self.split)
-        self.metadata = self.metadata.filter(pl.col("type") == self.type)
+        # Filter rows based on 'split' column
+        self.metadata = self.metadata.loc[self.metadata["split"] == self.split]
 
-        # Filter by pathology OR
-        if (
-            self.pathology and len(self.pathology) > 0
-        ):  # Ensure pathology list is not empty
-            pathology_filter = pl.col(self.pathology[0]) == True
-            for path in self.pathology[1:]:
-                pathology_filter |= pl.col(path) == True
-
-            self.metadata = self.metadata.filter(pathology_filter)
-
-        if self.lower_slice:
-            self.metadata = self.metadata.filter(pl.col("slice_id") >= self.lower_slice)
-
-        if self.upper_slice:
-            self.metadata = self.metadata.filter(pl.col("slice_id") <= self.upper_slice)
-
+        # Random sampling if needed
         if self.number_of_samples and not self.evaluation:
-            self.metadata = self.metadata.collect().sample(
-                n=self.number_of_samples, seed=self.seed
+            self.metadata = self.metadata.sample(
+                n=self.number_of_samples, random_state=self.seed
             )
-        else:
-            self.metadata = self.metadata.collect()
+
+        # Sort by 'Path' column
+        self.metadata.sort_values(by="Path", inplace=True)
+
+        # Reset the index
+        self.metadata = self.metadata.reset_index(drop=True)
 
     def __len__(self):
         return len(self.metadata)
 
     def __getitem__(self, idx: int):
-        row = self.metadata.row(idx, named=True)
+        row = self.metadata.iloc[idx]
 
         return self._get_item_from_row(row)
 
