@@ -150,6 +150,7 @@ def main():
             reconstruction=reconstruction,
             num_samples=number_of_samples,
             transforms=transforms_list,
+            device=device,
         )
 
         # Create DataFrame for results

@@ -11,6 +11,9 @@ def plot_auroc_and_significance(df, output_dir):
     # Compute AUROCs for each pathology
     for pathology in df['pathology'].unique():
         subset = df[df['pathology'] == pathology]
+        if len(subset['gt'].unique()) == 1:
+            print(f"Only one class present for pathology: {pathology}")
+            continue  # Skip AUROC calculation if only one class is present
         auroc_pred = roc_auc_score(subset['gt'], subset['pred'])
         auroc_pred_recon = roc_auc_score(subset['gt'], subset['pred_recon'])
         pathology_aurocs[pathology] = (auroc_pred, auroc_pred_recon)

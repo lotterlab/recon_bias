@@ -110,7 +110,6 @@ class ReconstructionDataset(BaseDataset):
         # Load the image
         image_path = os.path.join(self.data_root, row["Path"])
         image = imread(image_path, as_gray=True) # scale 0 - 255
-        image = resize(image, (256, 256), anti_aliasing=True)  # scale 0 - 1
 
         # Process the image
         reconstructed_image = self.process_image(image)
