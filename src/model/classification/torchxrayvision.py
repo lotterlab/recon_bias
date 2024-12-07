@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import warnings
 warnings.filterwarnings("ignore")
 import skimage
+from skimage.transform import resize
 
 class XRayCenterCrop(object):
     def crop_center(self, img):
@@ -533,20 +534,12 @@ class CheX_Dataset(Dataset):
         sample = {}
         sample["idx"] = idx
         sample["lab"] = self.labels[idx]
-        sample["path"] = self.csv['Path'].iloc[idx]
 
         imgid = self.csv['Path'].iloc[idx]
         imgid = imgid.replace("CheXpert-v1.0-small/", "")
         img_path = os.path.join(self.imgpath, imgid)
         img = imread(img_path)
-
-        # apply windowing
-        if self.min_window_width:
-            img = apply_random_window_width(img, self.min_window_width, max_width=256)
-
-        sample["img"] = normalize(img, maxval=255, reshape=True)
-
-        sample = apply_transforms(sample, self.transform)
-        sample = apply_transforms(sample, self.data_aug)
+        img = resize(img, (1, 256, 256), anti_aliasing=True).astype(np.float32)
+        sample["img"] = img
 
         return sample

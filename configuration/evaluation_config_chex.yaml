@@ -7,5 +7,5 @@ seed: 42
 reconstruction: 
   model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-chex_20241204_162448/checkpoints/unet-chex_20241204_162448_epoch_6.pth"
 classifier:
-  model_path: "/lotterlab/users/matteo/code/torchxrayvision/output/test_model/chex-densenet-test_model-e46.pt"
+  model_path: "/lotterlab/users/matteo/code/torchxrayvision/output/class_norm01/chex-densenet-class_norm01-best.pt"
 
