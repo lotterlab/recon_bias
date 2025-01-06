@@ -1,25 +1,34 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
-output_name: "evaluation-segmentation-csv-tgrade"
+output_name: "evaluation-segmentation-noise-test"
 type: "FLAIR"
 pathology: ["edema","non_enhancing"]
 seed: 42
 age_bins: [0, 58, 100]
 lower_slice: 60
 upper_slice: 130
-num_samples: 100
+num_samples: 1
 reconstruction: 
   sampling_mask: "radial"
   models: 
     - network: "UNet"
-      name: "four"
-      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-4-only_20241202_154601/checkpoints/unet-4-only_20241202_154601_epoch_16_best.pth"
+      acceleration: 8
+      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_3.pth"
     - network: "UNet"
-      name: "Mix"
-      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-tgrade-mix_20241202_160455/checkpoints/unet-tgrade-mix_20241202_160455_epoch_17_best.pth"
+      acceleration: 16
+      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-16_20250106_103029/checkpoints/unet-16_20250106_103029_epoch_6.pth"
     - network: "UNet"
-      name: "smaller-four"
-      model_path: "/lotterlab/users/matteo/duplicate_code/recon_bias/output/unet-s4-only_20241202_155803/checkpoints/unet-s4-only_20241202_155803_epoch_14_best.pth"
+      acceleration: 24
+      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-24_20250106_112142/checkpoints/unet-24_20250106_112142_epoch_4.pth"
+    - network: "GAN"
+      acceleration: 8
+      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-8/latest_net_G.pth"
+    - network: "GAN"
+      acceleration: 16
+      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-16/latest_net_G.pth"
+    - network: "GAN"
+      acceleration: 24
+      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-24/latest_net_G.pth"
 segmentation:
     model_path: "/lotterlab/users/matteo/models/segmentation_skews/segmentation_20241126_225621/checkpoints/segmentation_20241126_225621_epoch_11.pth"
 

@@ -16,6 +16,7 @@ from src.model.segmentation.segmentation_model import SegmentationModel
 import segmentation_models_pytorch as smp  # For pretrained UNet
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
+from src.model.reconstruction.GAN import UnetGenerator
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.utils.transformations import min_max_slice_normalization
 
@@ -42,7 +43,6 @@ def load_segmentation_model(model_path: str, device) -> SegmentationModel:
 
     model = model.to(device)
 
-    # TODO how to load?
     network = smp.Unet(
         in_channels=1,
         classes=1,
@@ -65,22 +65,25 @@ def load_segmentation_model(model_path: str, device) -> SegmentationModel:
 
 
 def load_reconstruction_model(network_type, model_path, device) -> torch.nn.Module:
-    model = ReconstructionModel()
-    model = model.to(device)
+    if network_type == "UNet":
+        model = ReconstructionModel()
+        model = model.to(device)
 
-    if network_type == "VGG":
-        network = VGGReconstructionNetwork(get_configs("vgg16"))
-    elif network_type == "UNet":
         network = UNet()
+        network = network.to(device)
+
+        model.set_network(network)
+
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        model.network.eval()
+
+    elif network_type == "GAN":
+        model = UnetGenerator(1, 1, 7)
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        model.eval()
+
     else:
         raise ValueError(f"Unknown network type: {network_type}")
-
-    network = network.to(device)
-
-    model.set_network(network)
-
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-    model.network.eval()
 
     return model
 
@@ -128,15 +131,11 @@ def main():
     # Device configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    transform = transforms.Compose(
-        [
-            min_max_slice_normalization,
-        ]
-    )
+    transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
+    transform = transforms.Compose(transform)
 
     seed = config.get("seed", 42)
 
-    # Process classifiers
     segmentation_dataset = SegmentationDataset(
         data_root=data_root,
         transform=transform,
@@ -157,41 +156,41 @@ def main():
         segmentation_config["model_path"], device
     )
 
-    # Initialize classifiers
     reconstruction_config = config["reconstruction"]
     sampling_mask = reconstruction_config.get("sampling_mask", None)
     reconstruction_models = []
+    acceleration_map = {8: 60, 16: 32, 24: 22}
     for reconstruction_cfg in reconstruction_config["models"]:
         network_type = reconstruction_cfg["network"]
-        name = reconstruction_cfg["name"]
+        acceleration = reconstruction_cfg["acceleration"]
         model_path = reconstruction_cfg["model_path"]
         reconstruction = load_reconstruction_model(
             network_type,
             model_path,
             device,
         )
-        reconstruction_models.append({"model": reconstruction, "name": name})
 
-    reconstruction_dataset = ReconstructionDataset(
-        data_root=data_root,
-        transform=transform,
-        split="test",
-        number_of_samples=num_samples,
-        seed=seed,
-        type=image_type,
-        pathology=pathology,
-        lower_slice=lower_slice,
-        upper_slice=upper_slice,
-        evaluation=True,
-        sampling_mask=sampling_mask,
-    )
+        reconstruction_dataset = ReconstructionDataset(
+            data_root=data_root,
+            transform=transform,
+            split="test",
+            number_of_samples=num_samples,
+            seed=seed,
+            type=image_type,
+            pathology=pathology,
+            lower_slice=lower_slice,
+            upper_slice=upper_slice,
+            evaluation=True,
+            sampling_mask=sampling_mask,
+            num_rays=acceleration_map[acceleration],
+        )
+
+        reconstruction_models.append({"network": network_type, "model": reconstruction, "acceleration": acceleration, "dataset": reconstruction_dataset})
 
     if results_path is None:
         # Process and evaluate classification
         results = segmentation_predictions(
-            data_root=data_root,
             segmentation_dataset=segmentation_dataset,
-            reconstruction_dataset=reconstruction_dataset,
             metadata=metadata,
             segmentation_model=segmentation_model,
             reconstruction_models=reconstruction_models,

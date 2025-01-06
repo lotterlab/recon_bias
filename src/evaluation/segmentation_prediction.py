@@ -7,7 +7,10 @@ import yaml
 from torchvision import transforms
 
 from src.utils.labels import extract_labels_from_row
+from skimage.metrics import peak_signal_noise_ratio, mean_squared_error, structural_similarity
 
+from torchvision.utils import save_image
+import os
 
 def majority_voting(predictions: List[int]) -> int:
     """Aggregate predictions via majority voting."""
@@ -23,7 +26,6 @@ def dice_coefficient(pred, target):
 def process_patient_data(
     patient_info,
     patient_segmentation_data,
-    patient_reconstruction_data,
     segmentation_model,
     reconstruction_models,
 ) -> dict:
@@ -59,15 +61,24 @@ def process_patient_data(
 
     for reconstruction_info in reconstruction_models: 
         reconstruction_model = reconstruction_info["model"]
-        reconstruction_name = reconstruction_info["name"]
+        reconstruction_network = reconstruction_info["network"]
+        acceleration = reconstruction_info["acceleration"]
+        dataset = reconstruction_info["dataset"]
+        patient_reconstruction_data = dataset.get_patient_data(patient_info["patient_id"])
 
         segmentation_sums = []
         segementation_dices = []
+        psnr = []
+        ssim = []
+        nrmse = []
+
 
         for i, (x, y) in enumerate(patient_segmentation_data):
             with torch.no_grad():
                 x = x.unsqueeze(0)
                 y = y.unsqueeze(0)
+
+                #save image x_recon to disk 
 
                 x_recon, _ = patient_reconstruction_data[i]
                 x_recon = x_recon.unsqueeze(0)
@@ -75,6 +86,25 @@ def process_patient_data(
                 y_recon = transforms.Resize((224, 224))(y_recon)
 
                 segmentation_output = segmentation_model(y_recon)
+
+                debug_dir = os.path.join(os.getcwd(), "debug_images")  # Get full path
+                os.makedirs(debug_dir, exist_ok=True)
+                # Save debug images
+                debug_prefix = f"debug_images/patient_{patient_info['patient_id']}_slice_{i}_{reconstruction_network}_acc{acceleration}"
+                
+                # Save original image
+                save_image(x_recon.squeeze(), f"{debug_prefix}_input.png")
+                
+                # Save ground truth segmentation
+                save_image(y.squeeze(), f"{debug_prefix}_gt_seg.png")
+                
+                # Save reconstructed image
+                save_image(y_recon.squeeze(), f"{debug_prefix}_reconstructed.png")
+                
+                # Save segmentation prediction
+                save_image(segmentation_output.squeeze(), f"{debug_prefix}_pred_seg.png")
+                break
+
                 segmentation_output[segmentation_output > 0.5] = 1
                 segmentation_output[segmentation_output <= 0.5] = 0
 
@@ -84,19 +114,20 @@ def process_patient_data(
                 segmentation_dice = dice_coefficient(segmentation_output, y)
                 segementation_dices.append(segmentation_dice.item())
 
-                gt_sum = torch.sum(y).item()
-                gt_sums.append(gt_sum)
+                psnr.append(peak_signal_noise_ratio(y.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze(), data_range=1))
+                ssim.append(structural_similarity(y.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze(), data_range=1))
+                nrmse.append(mean_squared_error(y.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze()))   
         
-        modified_patient_info[f"{reconstruction_name}_segmentation_sum"] = np.sum(segmentation_sums)
-        modified_patient_info[f"{reconstruction_name}_segmentation_dice"] = np.mean(segementation_dices)
-
+        modified_patient_info[f"{reconstruction_network}_{acceleration}_segmentation_sum"] = np.sum(segmentation_sums)
+        modified_patient_info[f"{reconstruction_network}_{acceleration}_segmentation_dice"] = np.mean(segementation_dices)
+        modified_patient_info[f"{reconstruction_network}_{acceleration}_psnr"] = np.mean(psnr)
+        modified_patient_info[f"{reconstruction_network}_{acceleration}_ssim"] = np.mean(ssim)
+        modified_patient_info[f"{reconstruction_network}_{acceleration}_nrmse"] = np.mean(nrmse)
     
     return modified_patient_info
 
 def segmentation_predictions(
-    data_root,
     segmentation_dataset,
-    reconstruction_dataset,
     metadata: pd.DataFrame,
     segmentation_model: List[dict],
     reconstruction_models: Optional[torch.nn.Module] = None,
@@ -116,18 +147,18 @@ def segmentation_predictions(
             "patient_id": patient_id,
             "sex": patient_df["sex"].iloc[0],
             "age": patient_df["age_at_mri"].iloc[0],
+            "who_cns_grade": patient_df["who_cns_grade"].iloc[0],
+            "final_diagnosis": patient_df["final_diagnosis"].iloc[0],
+            "alive": patient_df["alive"].iloc[0],
+            "os": patient_df["os"].iloc[0],
         }
-        patient_classification_data = segmentation_dataset.get_patient_data(
+        patient_segmentation_data = segmentation_dataset.get_patient_data(
             patient_id
         )
 
-        patient_reconstruction_data = reconstruction_dataset.get_patient_data(
-            patient_id
-        )
         patient_prediction = process_patient_data(
             patient_info,
-            patient_classification_data,
-            patient_reconstruction_data,
+            patient_segmentation_data,
             segmentation_model,
             reconstruction_models,
         )
