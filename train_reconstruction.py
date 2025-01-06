@@ -53,6 +53,7 @@ def main():
     seed = config.get("seed", 31415)
     save_interval = config.get("save_interval", 1)
     early_stopping_patience = config.get("early_stopping_patience", None)
+    photon_count = config.get("photon_count", 1e5)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -74,6 +75,7 @@ def main():
         split="train_recon",
         number_of_samples=num_train_samples,
         seed=seed,
+        photon_count=photon_count,
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
@@ -81,6 +83,7 @@ def main():
         split="val_recon",
         number_of_samples=num_val_samples,
         seed=seed,
+        photon_count=photon_count,
     )
 
     val_sampler = None

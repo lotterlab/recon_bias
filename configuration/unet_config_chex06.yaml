@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'unet-chex-50'
+output_name: 'unet-chex-06'
 save_interval: 1
 
 num_epochs: 20
@@ -12,11 +12,7 @@ csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
 lower_slice: 60
 upper_slice: 130
 age_bins: [0, 58, 100]
-photon_count: 3000
+photon_count: 10000
 
 network_type: 'UNet'
 seed: 31415
-
-
-num_train_samples: 8
-num_val_samples: 8

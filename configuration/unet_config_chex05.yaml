@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'unet-chex-50'
+output_name: 'unet-chex-05'
 save_interval: 1
 
 num_epochs: 20
@@ -16,7 +16,3 @@ photon_count: 3000
 
 network_type: 'UNet'
 seed: 31415
-
-
-num_train_samples: 8
-num_val_samples: 8
