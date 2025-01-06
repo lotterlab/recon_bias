@@ -59,6 +59,7 @@ def main():
     upper_slice = config.get("upper_slice", None)
     rebalancing = config.get("rebalancing", None)
     age_bins = config.get("age_bins", [0, 58, 100])
+    num_rays = config.get("num_rays", 60)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -73,11 +74,8 @@ def main():
     with open(config_save_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
-    transform = transforms.Compose(
-        [
-            min_max_slice_normalization,
-        ]
-    )
+    transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
+    transform = transforms.Compose(transform)
 
     # Datasets and DataLoaders
     train_dataset = ReconstructionDataset(
@@ -92,6 +90,7 @@ def main():
         lower_slice=lower_slice,
         upper_slice=upper_slice,
         age_bins=age_bins,
+        num_rays=num_rays,
     )
     val_dataset = ReconstructionDataset(
         data_root=data_root,
@@ -105,6 +104,7 @@ def main():
         lower_slice=lower_slice,
         upper_slice=upper_slice,
         age_bins=age_bins,
+        num_rays=num_rays,
     )
 
     val_sampler = None
