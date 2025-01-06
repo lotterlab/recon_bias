@@ -31,6 +31,7 @@ class ReconstructionDataset(BaseDataset):
         evaluation=False,
         age_bins=[0, 68, 100],
         sampling_mask: Optional[str] = "radial",
+        num_rays: Optional[int] = 60,
     ):
         """
         Initialize the MRIDataset.
@@ -55,7 +56,8 @@ class ReconstructionDataset(BaseDataset):
             evaluation=evaluation,
             age_bins=age_bins,
         )
-
+        self.num_rays = num_rays
+        print(f"Number of rays: {self.num_rays}")
     def convert_to_complex(self, image_slice):
         """
         Convert a real-valued 2D image slice to complex format.
@@ -72,7 +74,7 @@ class ReconstructionDataset(BaseDataset):
 
         return complex_tensor
 
-    def create_radial_mask(self, shape, num_rays=60):
+    def create_radial_mask(self, shape):
         """
         Create a radial mask for undersampling k-space.
 
@@ -89,7 +91,7 @@ class ReconstructionDataset(BaseDataset):
         mask = np.zeros((H, W), dtype=np.float32)
 
         # Define angles for rays
-        angles = np.linspace(0, 2 * np.pi, num_rays, endpoint=False)
+        angles = np.linspace(0, 2 * np.pi, self.num_rays, endpoint=False)
 
         for angle in angles:
             line_x = np.cos(angle)
