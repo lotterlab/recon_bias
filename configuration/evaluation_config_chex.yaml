@@ -1,8 +1,7 @@
 data_root: '/lotterlab/datasets/'
 csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
 output_dir: "./output"
-output_name: "evaluation-debug"
-number_of_samples: 10
+output_name: "evaluation-chex"
 seed: 42
 reconstruction: 
   model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-chex_20241204_162448/checkpoints/unet-chex_20241204_162448_epoch_6.pth"

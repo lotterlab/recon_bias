@@ -538,8 +538,10 @@ class CheX_Dataset(Dataset):
         imgid = self.csv['Path'].iloc[idx]
         imgid = imgid.replace("CheXpert-v1.0-small/", "")
         img_path = os.path.join(self.imgpath, imgid)
-        img = imread(img_path)
-        img = resize(img, (1, 256, 256), anti_aliasing=True).astype(np.float32)
+        img = imread(img_path, as_gray=True)
+        img = resize(img, (256, 256), anti_aliasing=True).astype(np.float32)
+        img = torch.from_numpy(img)
+        img = img.unsqueeze(0)
         sample["img"] = img
 
         return sample

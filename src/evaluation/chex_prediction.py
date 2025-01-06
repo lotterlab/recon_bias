@@ -126,9 +126,6 @@ def process_patient_data(
 
     recon = reconstruction(x_recon)
 
-    save_images_with_difference(x_class, recon, save_dir='output/debug-2', file_prefix='comparison')
-
-
     #recon_np = recon.squeeze(0).detach().cpu().numpy()
     #transformed_recon_np = transforms(recon_np)
     #recon = torch.tensor(transformed_recon_np, dtype=torch.float32).unsqueeze(0).to(device)
