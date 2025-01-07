@@ -129,8 +129,8 @@ def main():
     metadata = metadata[metadata["split"] == "test"]
 
     # Device configuration
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
     transform = transforms.Compose(transform)
 
@@ -211,7 +211,6 @@ def main():
     # Evaluate predictions
     evaluate_segmentation(
         df=results_df,
-        segmentation_model=segmentation_model,
         reconstruction_models=reconstruction_models,
         output_dir=output_path,
     )

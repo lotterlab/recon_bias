@@ -57,6 +57,8 @@ def process_patient_data(
     
     modified_patient_info["gt_sum"] = np.sum(gt_sums)
     modified_patient_info["segmentation_sum"] = np.sum(segmentation_sums)
+
+    # First mean calculation
     modified_patient_info["segmentation_dice"] = np.mean(segementation_dices)
 
     for reconstruction_info in reconstruction_models: 
@@ -86,24 +88,6 @@ def process_patient_data(
                 y_recon = transforms.Resize((224, 224))(y_recon)
 
                 segmentation_output = segmentation_model(y_recon)
-
-                debug_dir = os.path.join(os.getcwd(), "debug_images")  # Get full path
-                os.makedirs(debug_dir, exist_ok=True)
-                # Save debug images
-                debug_prefix = f"debug_images/patient_{patient_info['patient_id']}_slice_{i}_{reconstruction_network}_acc{acceleration}"
-                
-                # Save original image
-                save_image(x_recon.squeeze(), f"{debug_prefix}_input.png")
-                
-                # Save ground truth segmentation
-                save_image(y.squeeze(), f"{debug_prefix}_gt_seg.png")
-                
-                # Save reconstructed image
-                save_image(y_recon.squeeze(), f"{debug_prefix}_reconstructed.png")
-                
-                # Save segmentation prediction
-                save_image(segmentation_output.squeeze(), f"{debug_prefix}_pred_seg.png")
-                break
 
                 segmentation_output[segmentation_output > 0.5] = 1
                 segmentation_output[segmentation_output <= 0.5] = 0
