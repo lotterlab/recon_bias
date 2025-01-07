@@ -59,12 +59,9 @@ class SegmentationDataset(BaseDataset):
         scan = nifti_img.get_fdata()
         slice = scan[:, :, row["slice_id"]]
         slice_tensor = torch.from_numpy(slice).float()
-        slice_tensor = slice_tensor.unsqueeze(0)
 
         if self.transform:
             slice_tensor = self.transform(slice_tensor)
-
-        slice_tensor = transforms.Resize((224, 224))(slice_tensor)
 
         segmentation_path = row["file_path"].replace(self.type, "tumor_segmentation")
 
@@ -75,7 +72,8 @@ class SegmentationDataset(BaseDataset):
         segmentation_slice[segmentation_slice == 4] = 0
 
         segmentation_slice = torch.from_numpy(segmentation_slice).float().unsqueeze(0)
-        segmentation_slice = transforms.Resize((224, 224))(segmentation_slice)
+        segmentation_slice = transforms.functional.resize(segmentation_slice, (256, 256))
+        slice_tensor = slice_tensor.unsqueeze(0)
 
         return slice_tensor, segmentation_slice
 
