@@ -1,19 +1,19 @@
 data_root: "../../data/UCSF-PDGM"
 output_dir: "./output"
-output_name: "evaluation-segmentation-noise-graphs"
+output_name: "evaluation-segmentation-noise"
 type: "FLAIR"
 pathology: ["edema","non_enhancing"]
 seed: 42
 age_bins: [0, 58, 100]
 lower_slice: 60
 upper_slice: 130
-results_path: "/lotterlab/users/matteo/results/evaluation-segmentation-noise_20250106_183902/evaluation-segmentation-noise_20250106_183902_results.csv"
+#results_path: "/lotterlab/users/matteo/results/evaluation-segmentation-noise_20250106_183902/evaluation-segmentation-noise_20250106_183902_results.csv"
 reconstruction: 
   sampling_mask: "radial"
   models: 
     - network: "UNet"
       acceleration: 8
-      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_9.pth"
+      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_11_best.pth"
     - network: "UNet"
       acceleration: 16
       model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-16_20250106_103029/checkpoints/unet-16_20250106_103029_epoch_7_best.pth"

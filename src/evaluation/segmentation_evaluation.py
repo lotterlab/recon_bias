@@ -27,8 +27,8 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
             actual_group = 'age'
         elif '<4' in group_labels:
             actual_group = 'grade'
-        elif 'GBM' in group_labels:
-            actual_group = 'diagnosis'
+        elif 'GBM IDH-wt' in group_labels:
+            actual_group = 'final_diagnosis'
     
     for model_idx, model in enumerate(models):
         if group_by is None:
@@ -65,15 +65,16 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
     # Add baseline if provided
     if baseline_value is not None:
         if metric == 'segmentation_dice':
-            baseline_label = 'Original Segmentation Dice'
+            baseline_label = 'Segmentation on GTDice'
         elif metric == 'segmentation_sum':
-            baseline_label = 'Original Segmentation'
+            baseline_label = 'Segmentation on GT Sum'
         plt.axhline(y=baseline_value, color='gray', linestyle=':', label=baseline_label)
         
         # Add GT sum line for segmentation_sum plots
         if metric == 'segmentation_sum':
             gt_value = df['gt_sum'].mean()
-            plt.axhline(y=gt_value, color='gray', linestyle='--', label='Ground Truth')
+            baseline_label = 'Ground Truth Sum'
+            plt.axhline(y=gt_value, color='gray', linestyle='--', label=baseline_label)
     
     plt.xlabel('Acceleration Rate')
     plt.ylabel('Sum' if metric == 'segmentation_sum' else metric.capitalize())
@@ -140,6 +141,16 @@ def evaluate_segmentation(df, reconstruction_models, output_dir):
     # Create subgroup plots
     for group_col, group_conditions, group_labels in groupings:
         for metric in metrics:
+            baseline_value = None
+            baseline_label = None
+            
+            if metric == 'segmentation_sum':
+                baseline_value = df['segmentation_sum'].mean()
+                baseline_label = 'Segmentation on GT Sum'
+            elif metric == 'segmentation_dice':
+                baseline_value = df['segmentation_dice'].mean()
+                baseline_label = 'Segmentatoin on GT Dice'
+            
             # Create temporary columns for complex conditions
             if callable(group_conditions[0]):
                 temp_df = df.copy()
@@ -149,9 +160,13 @@ def evaluate_segmentation(df, reconstruction_models, output_dir):
                 create_metric_plot(temp_df, metric, models, accelerations, output_dir,
                                  group_by='temp_group', 
                                  group_values=group_labels,
-                                 group_labels=group_labels)
+                                 group_labels=group_labels, 
+                                 baseline_value=baseline_value, 
+                                 baseline_label=baseline_label)
             else:
                 create_metric_plot(df, metric, models, accelerations, output_dir,
                                  group_by=group_col,
                                  group_values=group_conditions,
-                                 group_labels=group_labels)
+                                 group_labels=group_labels,
+                                 baseline_value=baseline_value, 
+                                 baseline_label=baseline_label)
