@@ -83,11 +83,8 @@ def main():
     with open(config_save_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
-    transform = transforms.Compose(
-        [
-            min_max_slice_normalization,
-        ]
-    )
+    transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
+    transform = transforms.Compose(transform)
 
     # Datasets and DataLoaders
     train_dataset = SegmentationDataset(
