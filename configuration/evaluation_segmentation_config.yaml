@@ -7,28 +7,27 @@ seed: 42
 age_bins: [0, 58, 100]
 lower_slice: 60
 upper_slice: 130
-#results_path: "/lotterlab/users/matteo/results/evaluation-segmentation-noise_20250106_183902/evaluation-segmentation-noise_20250106_183902_results.csv"
 reconstruction: 
   sampling_mask: "radial"
   models: 
     - network: "UNet"
       acceleration: 8
-      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_11_best.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_11_best.pth"
     - network: "UNet"
       acceleration: 16
-      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-16_20250106_103029/checkpoints/unet-16_20250106_103029_epoch_7_best.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/unet-16_20250106_103029/checkpoints/unet-16_20250106_103029_epoch_7_best.pth"
     - network: "UNet"
       acceleration: 24
-      model_path: "/lotterlab/users/matteo/code/recon_bias/output/unet-24_20250106_112142/checkpoints/unet-24_20250106_112142_epoch_5_best.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/unet-24_20250106_112142/checkpoints/unet-24_20250106_112142_epoch_5_best.pth"
     - network: "GAN"
       acceleration: 8
-      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-8/latest_net_G.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/UCSF-8/latest_net_G.pth"
     - network: "GAN"
       acceleration: 16
-      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-16/latest_net_G.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/UCSF-16/latest_net_G.pth"
     - network: "GAN"
       acceleration: 24
-      model_path: "/lotterlab/users/matteo/models/Pix2Pix/UCSF-24/latest_net_G.pth"
+      model_path: "/lotterlab/users/matteo/models/Noise/UCSF/UCSF-24/latest_net_G.pth"
 segmentation:
-    model_path: "/lotterlab/users/matteo/models/segmentation_skews/segmentation_20241126_225621/checkpoints/segmentation_20241126_225621_epoch_11.pth"
+    model_path: "/lotterlab/users/matteo/models/Noise/UCSF/segmentation_20250107_102327/checkpoints/segmentation_20250107_102327_epoch_38.pth"
 

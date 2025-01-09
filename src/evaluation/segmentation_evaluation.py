@@ -10,8 +10,12 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
     """
     plt.figure(figsize=(10, 6))
     
-    # Colors from the screenshot
-    colors = ['#5052F8', '#E73D2E', '#1AC586']  # Blue, Red, Green
+    # Create a fixed color mapping for models
+    color_mapping = {
+        'GAN': '#5052F8',    # Blue
+        'UNet': '#E73D2E',   # Red
+        'Diffusion': '#1AC586'   # Green
+    }
     background_color = '#DFE7F4'  # Light gray
     line_styles = ['-', '--']  # Solid for group 1, dashed for group 2
     
@@ -30,21 +34,32 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
         elif 'GBM IDH-wt' in group_labels:
             actual_group = 'final_diagnosis'
     
+    # Add metric display mapping
+    metric_display_mapping = {
+        'segmentation_sum': 'Tumor Volume',
+        'segmentation_dice': 'DICE Score',
+        'psnr': 'PSNR',
+        'ssim': 'SSIM',
+        'nrmse': 'NRMSE'
+    }
+    
     for model_idx, model in enumerate(models):
         if group_by is None:
-            # Plot for overall performance without creating legend entries for each point
+            # Plot for overall performance
             for acc in accelerations:
                 col_name = f"{model}_{acc}_{metric}"
                 means = df[col_name].mean()
                 stds = df[col_name].std()
-                plt.errorbar(acc, means, yerr=stds, color=colors[model_idx],
+                n = len(df[col_name])  # Get sample size
+                stderr = stds / np.sqrt(n)  # Calculate standard error
+                plt.errorbar(acc, means, yerr=stderr, color=color_mapping[model],
                            marker='o', capsize=5,
                            capthick=1, elinewidth=1)
                 
             # Connect points for each model and create single legend entry
             acc_values = [float(acc) for acc in accelerations]
             mean_values = [df[f"{model}_{acc}_{metric}"].mean() for acc in accelerations]
-            plt.plot(acc_values, mean_values, color=colors[model_idx], label=f"{model}")
+            plt.plot(acc_values, mean_values, color=color_mapping[model], label=f"{model}")
             
         else:
             # Plot for subgroups
@@ -53,12 +68,14 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
                 
                 means = [group_df[f"{model}_{acc}_{metric}"].mean() for acc in accelerations]
                 stds = [group_df[f"{model}_{acc}_{metric}"].std() for acc in accelerations]
+                n = len(group_df)  # Get sample size for this group
+                stderr = [std / np.sqrt(n) for std in stds]  # Calculate standard error
                 
-                plt.errorbar(accelerations, means, yerr=stds, 
-                           color=colors[model_idx], linestyle=line_styles[group_idx],
+                plt.errorbar(accelerations, means, yerr=stderr, 
+                           color=color_mapping[model], linestyle=line_styles[group_idx],
                            marker='o', capsize=5,
                            capthick=1, elinewidth=1)
-                plt.plot(accelerations, means, color=colors[model_idx], 
+                plt.plot(accelerations, means, color=color_mapping[model], 
                         linestyle=line_styles[group_idx],
                         label=f"{model} - {label}")
     
@@ -77,10 +94,13 @@ def create_metric_plot(df, metric, models, accelerations, output_dir,
             plt.axhline(y=gt_value, color='gray', linestyle='--', label=baseline_label)
     
     plt.xlabel('Acceleration Rate')
-    plt.ylabel('Sum' if metric == 'segmentation_sum' else metric.capitalize())
+    y_label = metric_display_mapping.get(metric, metric.capitalize())
+    if metric == 'segmentation_sum':
+        y_label += " in Pixel"
+    plt.ylabel(y_label)
     
-    # Create title with proper capitalization
-    metric_display = 'Sum' if metric == 'segmentation_sum' else metric.capitalize()
+    # Use the mapping for the title
+    metric_display = metric_display_mapping.get(metric, metric.capitalize())
     if group_by:
         group_display = actual_group.replace('_', ' ').title()
         if actual_group == 'who_cns_grade':

@@ -84,8 +84,7 @@ def process_patient_data(
 
                 x_recon, y_recon_gt = patient_reconstruction_data[i]
                 x_recon = x_recon.unsqueeze(0)
-                y_recon_og = reconstruction_model(x_recon)
-                y_recon = transforms.Resize((224, 224))(y_recon_og)
+                y_recon = reconstruction_model(x_recon)
 
                 segmentation_output = segmentation_model(y_recon)
 
@@ -98,9 +97,9 @@ def process_patient_data(
                 segmentation_dice = dice_coefficient(segmentation_output, y)
                 segementation_dices.append(segmentation_dice.item())
 
-                psnr.append(peak_signal_noise_ratio(y_recon_gt.detach().numpy().squeeze(), y_recon_og.detach().numpy().squeeze(), data_range=1))
-                ssim.append(structural_similarity(y_recon_gt.detach().numpy().squeeze(), y_recon_og.detach().numpy().squeeze(), data_range=1))
-                nrmse.append(mean_squared_error(y_recon_gt.detach().numpy().squeeze(), y_recon_og.detach().numpy().squeeze()))   
+                psnr.append(peak_signal_noise_ratio(y_recon_gt.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze(), data_range=1))
+                ssim.append(structural_similarity(y_recon_gt.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze(), data_range=1))
+                nrmse.append(mean_squared_error(y_recon_gt.detach().numpy().squeeze(), y_recon.detach().numpy().squeeze()))   
         
         modified_patient_info[f"{reconstruction_network}_{acceleration}_segmentation_sum"] = np.sum(segmentation_sums)
         modified_patient_info[f"{reconstruction_network}_{acceleration}_segmentation_dice"] = np.mean(segementation_dices)
