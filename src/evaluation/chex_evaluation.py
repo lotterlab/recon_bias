@@ -477,3 +477,94 @@ def plot_fairness_metrics(df, pathologies, reconstruction_models, output_dir):
                 facet_col_label="Photon Count",
                 baseline_performance=dict(zip(baseline_df['metric'], baseline_df['value']))
             )
+
+def plot_image_metrics(df, reconstruction_models, output_dir):
+    """Plot image quality metrics (PSNR, SSIM, NRMSE) across different groups."""
+    # Define metrics and groups
+    image_metrics = ["psnr", "ssim", "nrmse"]
+    metric_names = {
+        "psnr": "PSNR",
+        "ssim": "SSIM",
+        "nrmse": "NRMSE"
+    }
+    protected_attributes = ["Sex", "Race", "age_bin"]
+    group_map = {
+        "age_bin": "Age",
+        "Sex": "Sex",
+        "Race": "Race",
+    }
+    
+    # Add age binning if not already present
+    if "age_bin" not in df.columns:
+        median_age = df["Age"].median()
+        df["age_bin"] = df["Age"].apply(lambda x: "young" if x < median_age else "old")
+
+    base_dir = output_dir
+    output_dir = os.path.join(base_dir, "image_metrics")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # For each metric
+    for metric in image_metrics:
+        # First create overall plot (no grouping)
+        results = []
+        for model in reconstruction_models:
+            metric_col = f"{model['network']}_{model['photon_count']}_{metric}"
+            results.append({
+                "model": model["network"],
+                "photon_count": model["photon_count"],
+                "value": df[metric_col].mean(),
+                "group": "Overall"
+            })
+        
+        overall_df = pd.DataFrame(results)
+        grouped_bar_chart(
+            overall_df,
+            x="group",
+            x_label="Overall Performance",
+            y="value",
+            y_label=metric_names[metric],
+            color="model",
+            color_label="Model",
+            category_order={},
+            title=f"Overall {metric_names[metric]}",
+            output_dir=output_dir,
+            output_name=f"{metric}_overall",
+            facet_col="photon_count",
+            facet_col_label="Photon Count",
+            error_y=None
+        )
+
+        # Then create grouped plots
+        for attr in protected_attributes:
+            results = []
+            for model in reconstruction_models:
+                metric_col = f"{model['network']}_{model['photon_count']}_{metric}"
+                # Calculate mean for each group
+                group_means = df.groupby(attr)[metric_col].mean().reset_index()
+                
+                for _, row in group_means.iterrows():
+                    results.append({
+                        "model": model["network"],
+                        "photon_count": model["photon_count"],
+                        "value": row[metric_col],
+                        "group": row[attr]
+                    })
+            
+            results_df = pd.DataFrame(results)
+            grouped_bar_chart(
+                results_df,
+                x="group",
+                x_label=attr,
+                y="value",
+                y_label=metric_names[metric],
+                color="model",
+                color_label="Model",
+                category_order={},
+                title=f"{metric_names[metric]} by {group_map[attr]}",
+                output_dir=output_dir,
+                output_name=f"{metric}_{group_map[attr]}",
+                facet_col="photon_count",
+                facet_col_label="Photon Count",
+                error_y=None
+            )

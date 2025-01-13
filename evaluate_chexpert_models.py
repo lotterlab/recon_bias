@@ -11,7 +11,7 @@ import yaml
 
 from src.data.reconstruction_dataset import ReconstructionDataset
 from src.evaluation.chex_prediction import classifier_predictions
-from src.evaluation.chex_evaluation import plot_classifier_metrics, plot_fairness_metrics
+from src.evaluation.chex_evaluation import plot_classifier_metrics, plot_fairness_metrics, plot_image_metrics
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
 from src.model.reconstruction.unet import UNet
 from src.model.reconstruction.GAN import UnetGenerator
@@ -202,12 +202,13 @@ def main():
         )
 
     # Evaluate predictions
-    #plot_classifier_metrics(
-    #    results_df, classifier_dataset.pathologies, reconstruction_models, output_path
-    #)
+    plot_classifier_metrics(
+        results_df, classifier_dataset.pathologies, reconstruction_models, output_path
+    )
     plot_fairness_metrics(
         results_df, classifier_dataset.pathologies, reconstruction_models, output_path
     )
+    plot_image_metrics(results_df, reconstruction_models, output_path)
 
 
 if __name__ == "__main__":
