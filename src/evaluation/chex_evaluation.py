@@ -2,97 +2,478 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
+import os
+import plotly.express as px
+from PIL import Image
+import plotly.graph_objects as go
 
-# Function to process the data and generate plots
-def plot_auroc_and_significance(df, output_dir):
-    results = []
-    pathology_aurocs = {}
 
-    # Compute AUROCs for each pathology
-    for pathology in df['pathology'].unique():
-        subset = df[df['pathology'] == pathology]
-        if len(subset['gt'].unique()) == 1:
-            print(f"Only one class present for pathology: {pathology}")
-            continue  # Skip AUROC calculation if only one class is present
-        auroc_pred = roc_auc_score(subset['gt'], subset['pred'])
-        auroc_pred_recon = roc_auc_score(subset['gt'], subset['pred_recon'])
-        pathology_aurocs[pathology] = (auroc_pred, auroc_pred_recon)
-        results.append({
-            "pathology": pathology,
-            "count": len(subset),
-            "auroc_pred": auroc_pred,
-            "auroc_pred_recon": auroc_pred_recon,
-        })
+def grouped_bar_chart(
+    df,
+    x,
+    x_label,
+    y,
+    y_label,
+    color,
+    color_label,
+    category_order,
+    title,
+    output_dir,
+    output_name,
+    facet_col=None,
+    facet_col_label=None,
+    facet_row=None,
+    facet_row_label=None,
+    error_y=None,
+    baseline_performance=None
+):
+    """Create a grouped bar chart with an additional bar plot representing overall performance."""
 
-    results_df = pd.DataFrame(results)
+    # Ensure output directory exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    # Format labels with sample counts
-    results_df["formatted_label"] = results_df.apply(
-        lambda row: f"{row['pathology']} (#{row['count']})", axis=1
+    # Define labels for the plot
+    labels = {x: x_label, y: y_label, color: color_label}
+
+    # Add facet labels only if they are valid (not None)
+    if facet_row is not None and facet_row_label is not None:
+        labels[facet_row] = facet_row_label
+
+    if facet_col is not None and facet_col_label is not None:
+        labels[facet_col] = facet_col_label
+
+    # Dynamically prepare the kwargs for px.bar
+    bar_chart_kwargs = {
+        "x": x,
+        "y": y,
+        "color": color,
+        "barmode": "group",
+        "category_orders": category_order,
+        "labels": labels,
+        "text": y,
+        "title": title,
+    }
+
+    # Add facet_col and facet_row only if they are valid (not None)
+    if facet_row is not None:
+        bar_chart_kwargs["facet_row"] = facet_row
+
+    if facet_col is not None:
+        bar_chart_kwargs["facet_col"] = facet_col
+
+    if error_y is not None:
+        bar_chart_kwargs["error_y"] = error_y
+
+    # Create the detailed grouped bar chart using Plotly
+    fig_bar = px.bar(df, **bar_chart_kwargs)
+
+    # Add baseline if provided
+    if baseline_performance is not None:
+        if isinstance(baseline_performance, dict):
+            # Define different styles for each group
+            styles = {
+                'dash': ['dash', 'dot', 'dashdot', 'longdash', 'longdashdot'],
+                'color': ['gray', 'darkgray', 'dimgray', 'lightgray', 'slategray']
+            }
+            
+            # For grouped plots, add a line for each group's baseline
+            for i, (group, value) in enumerate(sorted(baseline_performance.items())):
+                dash_style = styles['dash'][i % len(styles['dash'])]
+                color_style = styles['color'][i % len(styles['color'])]
+                
+                fig_bar.add_shape(
+                    type="line",
+                    x0=0,
+                    x1=1,
+                    y0=value,
+                    y1=value,
+                    xref="paper",
+                    line=dict(
+                        dash=dash_style,
+                        color=color_style,
+                        width=2
+                    )
+                )
+                
+                # Add to legend using an invisible scatter trace
+                fig_bar.add_trace(
+                    go.Scatter(
+                        x=[None],
+                        y=[None],
+                        mode='lines',
+                        line=dict(dash=dash_style, color=color_style, width=2),
+                        name=f"Original Classification ({group})",
+                        showlegend=True
+                    )
+                )
+        else:
+            # For overall plot, use the same approach
+            fig_bar.add_shape(
+                type="line",
+                x0=0,
+                x1=1,
+                y0=baseline_performance,
+                y1=baseline_performance,
+                xref="paper",
+                line=dict(
+                    dash="dash",
+                    color="gray",
+                    width=2
+                )
+            )
+            
+            # Add to legend using an invisible scatter trace
+            fig_bar.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode='lines',
+                    line=dict(dash="dash", color="gray", width=2),
+                    name="Original Classification",
+                    showlegend=True
+                )
+            )
+
+    # Update layout with better spacing and legend formatting
+    fig_bar.update_layout(
+        yaxis_tickformat=".2f",
+        uniformtext_minsize=8,
+        uniformtext_mode="hide",
+        title_x=0.5,
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=1.02,  # Move legend further right
+            itemwidth=40,  # Fixed width for legend items
+            font=dict(size=10),  # Adjust font size if needed
+        ),
+        width=1200,  # Increase overall width
+        height=600,  # Adjust height if needed
+        margin=dict(r=150),  # Add right margin for legend
     )
 
-    # Plot 1: AUROC for pred and pred_recon
-    plt.figure(figsize=(12, 8))
-    x_positions = np.arange(len(results_df))
-    plt.bar(x_positions - 0.2, results_df["auroc_pred"], width=0.4, label="Pred")
-    plt.bar(x_positions + 0.2, results_df["auroc_pred_recon"], width=0.4, label="Pred Recon")
-    plt.xticks(x_positions, results_df["formatted_label"], rotation=90)
-    plt.xlabel("Pathology")
-    plt.ylabel("AUROC")
-    plt.title("AUROC Comparison for Pred and Pred Recon")
+    # Adjust spacing between facets
+    fig_bar.update_layout(
+        bargap=0.15,  # Gap between bars in the same group
+        bargroupgap=0.1,  # Gap between bar groups
+    )
 
-    # Annotate AUROC values on bars
-    for i, (auroc_pred, auroc_recon) in enumerate(zip(results_df["auroc_pred"], results_df["auroc_pred_recon"])):
-        plt.text(i - 0.2, auroc_pred + 0.01, f"{auroc_pred:.2f}", ha='center', va='bottom')
-        plt.text(i + 0.2, auroc_recon + 0.01, f"{auroc_recon:.2f}", ha='center', va='bottom')
+    # Remove text on bars completely
+    fig_bar.update_traces(
+        textposition="none",
+        selector=dict(type="bar")
+    )
 
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/auroc_comparison.png")
-    plt.close()
+    # Save the detailed grouped bar chart as an image
+    bar_chart_path = os.path.join(output_dir, f"{output_name}.png")
+    fig_bar.write_image(bar_chart_path)
 
-    # Plot 2: Significance of difference between AUROCs
-    p_values = []
-    for pathology, (auroc_pred, auroc_pred_recon) in pathology_aurocs.items():
-        # Simulate the sampling distribution to calculate p-value
-        subset = df[df['pathology'] == pathology]
-        gt = subset['gt'].values
-        bootstrap_diffs = []
-        for _ in range(1000):  # Bootstrap
-            indices = np.random.choice(len(gt), len(gt), replace=True)
-            bootstrap_pred = subset['pred'].values[indices]
-            bootstrap_pred_recon = subset['pred_recon'].values[indices]
-            bootstrap_gt = gt[indices]
-            auroc_bootstrap_pred = roc_auc_score(bootstrap_gt, bootstrap_pred)
-            auroc_bootstrap_recon = roc_auc_score(bootstrap_gt, bootstrap_pred_recon)
-            bootstrap_diffs.append(auroc_bootstrap_pred - auroc_bootstrap_recon)
+
+def apply_function_to_single_column(
+    grouped_df, reconstruction_models, group_by, column, error=None
+):
+    """Calculate the significance between the GT and prediction/reconstruction values."""
+    results = []
+    photon_counts = np.unique([model["photon_count"] for model in reconstruction_models])
+
+    for group_keys, group in grouped_df:
+        for photon_count in photon_counts:
+            for reconstruction_model in reconstruction_models:
+                if reconstruction_model["photon_count"] != photon_count:
+                    continue
+
+                recon_column = group[
+                    f"{column}_{reconstruction_model['network']}_{reconstruction_model['photon_count']}"
+                ]
+                
+                valid_mask = ~(group[column].isna() | recon_column.isna())
+                if valid_mask.sum() == 0:
+                    continue
+                    
+                result = roc_auc_score(
+                    group[column][valid_mask],
+                    recon_column[valid_mask]
+                )
+
+                error_result = None
+                if error:
+                    error_result = error(recon_column[valid_mask])
+
+                dict = {
+                    f"{group_by}": group_keys,
+                    "model": f"{reconstruction_model['network']}",
+                    "photon_count": reconstruction_model["photon_count"],
+                    "value": result,
+                }
+
+                if error_result:
+                    dict["error"] = error_result
+
+                results.append(dict)
+
+    metrics_df = pd.DataFrame(results)
+    return metrics_df
+
+
+def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
+    # add column that splits age into young and old, according to the median age in the df
+    median_age = df["Age"].median()
+    df["age_bin"] = df["Age"].apply(lambda x: "young" if x < median_age else "old")
+    groups = ["age_bin", "Sex", "Race"]
+    group_map = {
+        "age_bin": "Age",
+        "Sex": "Sex",
+        "Race": "Race",
+    }
+
+    base_dir = output_dir
+
+    for pathology in pathologies:
+        output_dir = os.path.join(base_dir, pathology)        
+
+        # Calculate baseline performance using original classification
+        valid_mask = ~(df[pathology].isna() | df[f"{pathology}_class"].isna())
+        baseline = roc_auc_score(
+            df[pathology][valid_mask],
+            df[f"{pathology}_class"][valid_mask]
+        )
+
+        # Overall performance plot
+        overall_results = apply_function_to_single_column(
+            [(None, df)],
+            reconstruction_models,
+            "group",
+            pathology,
+        )
+        overall_results["group"] = "Overall"
         
-        # Compute p-value (two-sided test)
-        mean_diff = auroc_pred - auroc_pred_recon
-        bootstrap_diffs = np.array(bootstrap_diffs)
-        p_value = (np.sum(np.abs(bootstrap_diffs) >= np.abs(mean_diff)) + 1) / (len(bootstrap_diffs) + 1)
-        p_values.append(p_value)
+        grouped_bar_chart(
+            overall_results,
+            x="group",
+            x_label="Overall Performance",
+            y="value",
+            y_label="AUROC",
+            color="model",
+            color_label="Model",
+            category_order={},
+            title=f"{pathology} Overall Performance",
+            output_dir=output_dir,
+            output_name=f"{pathology}_overall.png",
+            facet_col="photon_count",
+            facet_col_label="Photon Count",
+            facet_row=None,
+            facet_row_label=None,
+            error_y=None,
+            baseline_performance=baseline
+        )
 
-    results_df["p_value"] = p_values
+        # For grouped analysis, calculate baseline per group
+        for group in groups:
+            df_copy = df.copy()
+            grouped_df = df_copy.groupby(group, observed=False)
 
-    plt.figure(figsize=(12, 8))
-    plt.bar(x_positions, results_df["p_value"])
-    plt.xticks(x_positions, results_df["formatted_label"], rotation=90)
-    plt.xlabel("Pathology")
-    plt.ylabel("p-value")
-    plt.title("Significance of Difference in AUROCs")
-    plt.axhline(0.05, color="red", linestyle="--", label="p=0.05")
+            # Calculate baseline for each group
+            group_baselines = {}
+            for group_name, group_data in grouped_df:
+                valid_mask = ~(group_data[pathology].isna() | group_data[f"{pathology}_class"].isna())
+                if valid_mask.sum() > 0:  # Only calculate if we have valid data
+                    group_baselines[group_name] = roc_auc_score(
+                        group_data[pathology][valid_mask],
+                        group_data[f"{pathology}_class"][valid_mask]
+                    )
 
-    # Annotate p-values on bars
-    for i, p_value in enumerate(results_df["p_value"]):
-        plt.text(i, -np.log10(p_value) + 0.1, f"{p_value:.3f}", ha='center', va='bottom')
+            results = apply_function_to_single_column(
+                grouped_df,
+                reconstruction_models,
+                group,
+                pathology,
+            )
 
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/significance_comparison.png")
-    plt.close()
+            grouped_bar_chart(
+                results,
+                x=group,
+                x_label=group_map[group],
+                y="value",
+                y_label="AUROC",
+                color="model",
+                color_label="Model",
+                category_order={},
+                title=f"{pathology} predictions grouped by {group_map[group]}",
+                output_dir=output_dir,
+                output_name=f"{pathology}_predictions_{group_map[group]}.png",
+                facet_col="photon_count",
+                facet_col_label="Photon Count",
+                facet_row=None,
+                facet_row_label=None,
+                error_y=None,
+                baseline_performance=group_baselines
+            )
 
-    # Save the results as a CSV
-    results_csv_path = f"{output_dir}/pathology_auroc_results.csv"
-    results_df.to_csv(results_csv_path, index=False)
-    return results_csv_path
+
+def calculate_fairness_metrics(y_true, y_pred_proba, protected_attribute, threshold=0.5):
+    """Calculate fairness metrics for binary classification."""
+    # Convert to binary predictions
+    y_pred = (y_pred_proba >= threshold).astype(int)
+    
+    # Remove any NaN values
+    valid_mask = ~(np.isnan(y_true) | np.isnan(y_pred) | pd.isna(protected_attribute))
+    if not valid_mask.any():
+        return {
+            'demographic_parity': np.nan,
+            'equalized_odds': np.nan,
+            'equal_opportunity': np.nan
+        }
+        
+    y_true = y_true[valid_mask]
+    y_pred = y_pred[valid_mask]
+    protected_attribute = protected_attribute[valid_mask]
+    
+    groups = np.unique(protected_attribute)
+    if len(groups) < 2:
+        return {
+            'demographic_parity': np.nan,
+            'equalized_odds': np.nan,
+            'equal_opportunity': np.nan
+        }
+    
+    # Initialize metrics
+    dem_parity = {}
+    eq_odds_tpr = {}
+    eq_odds_fpr = {}
+    eq_opp = {}
+    
+    # Calculate metrics for each group
+    for group in groups:
+        mask = protected_attribute == group
+        if not mask.any():  # Skip if no samples in this group
+            continue
+            
+        # Demographic Parity
+        dem_parity[group] = np.mean(y_pred[mask])
+        
+        # For TPR and FPR calculations
+        pos_mask = y_true[mask] == 1
+        neg_mask = y_true[mask] == 0
+        
+        # Skip if no positive/negative samples
+        if pos_mask.any():
+            tpr = np.mean(y_pred[mask][pos_mask])
+            eq_odds_tpr[group] = tpr
+            eq_opp[group] = tpr
+        
+        if neg_mask.any():
+            eq_odds_fpr[group] = np.mean(y_pred[mask][neg_mask])
+    
+    # Only calculate metrics if we have enough data
+    metrics = {}
+    if len(dem_parity) >= 2:
+        metrics['demographic_parity'] = max(dem_parity.values()) - min(dem_parity.values())
+    else:
+        metrics['demographic_parity'] = np.nan
+        
+    if len(eq_odds_tpr) >= 2 and len(eq_odds_fpr) >= 2:
+        metrics['equalized_odds'] = (
+            (max(eq_odds_tpr.values()) - min(eq_odds_tpr.values()) +
+             max(eq_odds_fpr.values()) - min(eq_odds_fpr.values())) / 2
+        )
+    else:
+        metrics['equalized_odds'] = np.nan
+        
+    if len(eq_opp) >= 2:
+        metrics['equal_opportunity'] = max(eq_opp.values()) - min(eq_opp.values())
+    else:
+        metrics['equal_opportunity'] = np.nan
+    
+    return metrics
+
+def plot_fairness_metrics(df, pathologies, reconstruction_models, output_dir):
+    """Plot fairness metrics across different protected attributes."""
+    protected_attributes = ["Sex", "Race", "age_bin"]
+    group_map = {
+        "age_bin": "Age",
+        "Sex": "Sex",
+        "Race": "Race",
+    }
+    metric_names = {
+        "demographic_parity": "DP",
+        "equalized_odds": "EODD",
+        "equal_opportunity": "EOPP"
+    }
+    
+    # Add age binning if not already present
+    if "age_bin" not in df.columns:
+        median_age = df["Age"].median()
+        df["age_bin"] = df["Age"].apply(lambda x: "young" if x < median_age else "old")
+
+    base_dir = output_dir
+
+    for pathology in pathologies:
+        output_dir = os.path.join(base_dir, pathology)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        for protected_attr in protected_attributes:
+            results = []
+            baseline_results = []
+            
+            # Calculate baseline metrics using original classification
+            y_true = df[pathology].values
+            y_pred = df[f"{pathology}_class"].values
+            valid_mask = ~(np.isnan(y_true) | np.isnan(y_pred))
+            baseline_metrics = calculate_fairness_metrics(
+                y_true[valid_mask],
+                y_pred[valid_mask],
+                df[protected_attr].values[valid_mask]
+            )
+            
+            # Store baseline metrics
+            for metric_name, value in baseline_metrics.items():
+                baseline_results.append({
+                    'metric': metric_names[metric_name],
+                    'value': value
+                })
+            
+            # Calculate metrics for each model and photon count
+            for model in reconstruction_models:
+                pred_col = f"{pathology}_{model['network']}_{model['photon_count']}"
+                y_pred = df[pred_col].values
+                valid_mask = ~(np.isnan(y_true) | np.isnan(y_pred))
+                
+                metrics = calculate_fairness_metrics(
+                    y_true[valid_mask],
+                    y_pred[valid_mask],
+                    df[protected_attr].values[valid_mask]
+                )
+                
+                for metric_name, value in metrics.items():
+                    results.append({
+                        "model": model["network"],
+                        "photon_count": model["photon_count"],
+                        "metric": metric_names[metric_name],
+                        "value": value
+                    })
+            
+            # Create DataFrame
+            results_df = pd.DataFrame(results)
+            baseline_df = pd.DataFrame(baseline_results)
+            
+            # Create single plot with all metrics
+            grouped_bar_chart(
+                results_df,
+                x="metric",
+                x_label="Fairness Metric",
+                y="value",
+                y_label="Disparity",
+                color="model",
+                color_label="Model",
+                category_order={},
+                title=f"Fairness Metrics for {pathology} by {group_map[protected_attr]}",
+                output_dir=output_dir,
+                output_name=f"{pathology}_fairness_{group_map[protected_attr]}",
+                facet_col="photon_count",
+                facet_col_label="Photon Count",
+                baseline_performance=dict(zip(baseline_df['metric'], baseline_df['value']))
+            )

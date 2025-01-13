@@ -13,6 +13,7 @@ import torchvision.transforms as transforms
 from src.data.dataset import BaseDataset
 from src.utils.transformations import min_max_slice_normalization
 
+
 def apply_bowtie_filter(sinogram):
     """
     Apply a bowtie filter to the Sinogram.
@@ -63,43 +64,51 @@ class ReconstructionDataset(BaseDataset):
             evaluation=evaluation,
         )
         self.photon_count = photon_count
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),  # Convert numpy to tensor
-            transforms.Lambda(min_max_slice_normalization),
-            transforms.Lambda(lambda x: x.float())  # Ensure float32
-        ])
+        self.transform = transforms.Compose(
+            [
+                transforms.ToTensor(),  # Convert numpy to tensor
+                transforms.Lambda(min_max_slice_normalization),
+                transforms.Lambda(lambda x: x.float()),  # Ensure float32
+            ]
+        )
         print(f"Photon count: {self.photon_count}")
 
     def process_image(self, image: np.ndarray) -> tuple:
         """
         Process the X-ray image with controllable noise levels.
-        
+
         Parameters:
         - image: 2D numpy array of the original image
         - photon_count: Number of photons (lower = more noise)
-        
+
         Returns:
         - reconstructed_image: Reconstructed image after processing
         - metrics: Dictionary with noise metrics
         """
         # Normalize input image to [0,1] range
         image = (image - np.min(image)) / (np.max(image) - np.min(image))
-        
+
         # Steps 2-5: Same as before
-        theta = np.linspace(0., 180., max(image.shape), endpoint=False)
+        theta = np.linspace(0.0, 180.0, max(image.shape), endpoint=False)
         sinogram = radon(image, theta=theta, circle=False)
         filtered_sinogram = apply_bowtie_filter(sinogram)
-        
+
         max_val = np.max(filtered_sinogram)
         scaled_sinogram = (filtered_sinogram / max_val) * self.photon_count
         noisy_sinogram = np.random.poisson(scaled_sinogram).astype(float)
         noisy_sinogram = (noisy_sinogram / self.photon_count) * max_val
 
-        reconstructed_padded_image = iradon(noisy_sinogram, theta=theta, filter_name='hann', circle=False)
-        reconstructed_image = resize(reconstructed_padded_image, image.shape, mode='reflect', anti_aliasing=True)
-        
+        reconstructed_padded_image = iradon(
+            noisy_sinogram, theta=theta, filter_name="hann", circle=False
+        )
+        reconstructed_image = resize(
+            reconstructed_padded_image, image.shape, mode="reflect", anti_aliasing=True
+        )
+
         # Normalize reconstructed image to [0,1] range
-        reconstructed_image = (reconstructed_image - np.min(reconstructed_image)) / (np.max(reconstructed_image) - np.min(reconstructed_image))
+        reconstructed_image = (reconstructed_image - np.min(reconstructed_image)) / (
+            np.max(reconstructed_image) - np.min(reconstructed_image)
+        )
 
         return reconstructed_image
 
@@ -116,13 +125,15 @@ class ReconstructionDataset(BaseDataset):
         """
         # Load the original image
         image_path = os.path.join(self.data_root, row["Path"])
-        original_image = imread(image_path, as_gray=True).astype(np.float32)  # Convert to float32
+        original_image = imread(image_path, as_gray=True).astype(
+            np.float32
+        )  # Convert to float32
         original_image = min_max_slice_normalization(original_image)
         original_image = resize(original_image, (256, 256), anti_aliasing=True)
-        
+
         # Process the image before any resizing
         degraded_image = self.process_image(original_image)
-        
+
         # Apply transforms to both images
         if self.transform:
             original_tensor = self.transform(original_image)
