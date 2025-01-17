@@ -8,6 +8,15 @@ from PIL import Image
 import plotly.graph_objects as go
 
 
+def calculate_roc_auc_safely(y_true, y_pred, pathology=None):
+    """Calculate ROC AUC score with safety checks for number of classes."""
+    unique_classes = np.unique(y_true)
+    if len(unique_classes) < 2:
+        print(f"Only found classes {unique_classes} in ground truth{f' for {pathology}' if pathology else ''} - ROC AUC cannot be calculated")
+        return np.nan
+    return roc_auc_score(y_true, y_pred)
+
+
 def grouped_bar_chart(
     df,
     x,
@@ -61,6 +70,11 @@ def grouped_bar_chart(
 
     if facet_col is not None:
         bar_chart_kwargs["facet_col"] = facet_col
+        # Add category orders for photon count to ensure high to low ordering
+        if facet_col == "photon_count":
+            bar_chart_kwargs["category_orders"] = {
+                "photon_count": sorted(df["photon_count"].unique(), reverse=True)
+            }
 
     if error_y is not None:
         bar_chart_kwargs["error_y"] = error_y
@@ -189,13 +203,14 @@ def apply_function_to_single_column(
                     f"{column}_{reconstruction_model['network']}_{reconstruction_model['photon_count']}"
                 ]
                 
-                valid_mask = ~(group[column].isna() | recon_column.isna())
+                valid_mask = ~(group[column].isna() | recon_column.isna() | group[column].isin([-1]) | recon_column.isin([-1]))
                 if valid_mask.sum() == 0:
                     continue
                     
-                result = roc_auc_score(
+                result = calculate_roc_auc_safely(
                     group[column][valid_mask],
-                    recon_column[valid_mask]
+                    recon_column[valid_mask],
+                    pathology=f"{column} ({group_keys})"
                 )
 
                 error_result = None
@@ -235,10 +250,11 @@ def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
         output_dir = os.path.join(base_dir, pathology)        
 
         # Calculate baseline performance using original classification
-        valid_mask = ~(df[pathology].isna() | df[f"{pathology}_class"].isna())
-        baseline = roc_auc_score(
+        valid_mask = ~(df[pathology].isna() | df[f"{pathology}_class"].isna() | df[pathology].isin([-1]) | df[f"{pathology}_class"].isin([-1]))
+        baseline = calculate_roc_auc_safely(
             df[pathology][valid_mask],
-            df[f"{pathology}_class"][valid_mask]
+            df[f"{pathology}_class"][valid_mask],
+            pathology=f"{pathology} (baseline)"
         )
 
         # Overall performance plot
@@ -261,7 +277,7 @@ def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
             category_order={},
             title=f"{pathology} Overall Performance",
             output_dir=output_dir,
-            output_name=f"{pathology}_overall.png",
+            output_name=f"{pathology}_overall",
             facet_col="photon_count",
             facet_col_label="Photon Count",
             facet_row=None,
@@ -278,11 +294,12 @@ def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
             # Calculate baseline for each group
             group_baselines = {}
             for group_name, group_data in grouped_df:
-                valid_mask = ~(group_data[pathology].isna() | group_data[f"{pathology}_class"].isna())
+                valid_mask = ~(group_data[pathology].isna() | group_data[f"{pathology}_class"].isna() | group_data[pathology].isin([-1]) | group_data[f"{pathology}_class"].isin([-1]))
                 if valid_mask.sum() > 0:  # Only calculate if we have valid data
-                    group_baselines[group_name] = roc_auc_score(
+                    group_baselines[group_name] = calculate_roc_auc_safely(
                         group_data[pathology][valid_mask],
-                        group_data[f"{pathology}_class"][valid_mask]
+                        group_data[f"{pathology}_class"][valid_mask],
+                        pathology=f"{pathology} ({group_name})"
                     )
 
             results = apply_function_to_single_column(
@@ -303,7 +320,7 @@ def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
                 category_order={},
                 title=f"{pathology} predictions grouped by {group_map[group]}",
                 output_dir=output_dir,
-                output_name=f"{pathology}_predictions_{group_map[group]}.png",
+                output_name=f"{pathology}_predictions_{group_map[group]}",
                 facet_col="photon_count",
                 facet_col_label="Photon Count",
                 facet_row=None,
@@ -318,15 +335,22 @@ def calculate_fairness_metrics(y_true, y_pred_proba, protected_attribute, thresh
     # Convert to binary predictions
     y_pred = (y_pred_proba >= threshold).astype(int)
     
-    # Remove any NaN values
-    valid_mask = ~(np.isnan(y_true) | np.isnan(y_pred) | pd.isna(protected_attribute))
+    # Remove any NaN values and -1 values
+    valid_mask = ~(
+        np.isnan(y_true) | 
+        np.isnan(y_pred) | 
+        pd.isna(protected_attribute) | 
+        (y_true == -1) | 
+        (y_pred == -1)
+    )
+    
     if not valid_mask.any():
         return {
             'demographic_parity': np.nan,
             'equalized_odds': np.nan,
             'equal_opportunity': np.nan
         }
-        
+    
     y_true = y_true[valid_mask]
     y_pred = y_pred[valid_mask]
     protected_attribute = protected_attribute[valid_mask]
