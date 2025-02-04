@@ -164,6 +164,8 @@ class Trainer:
         self.model.eval()
         running_loss = 0.0
         running_metrics = 0
+        running_fairness_loss = 0.0
+        running_l1_loss = 0.0
         total = 0
 
         val_bar = tqdm(
@@ -196,7 +198,7 @@ class Trainer:
                     {
                         "Val Loss": running_loss / total,
                         "Val Fairness Loss": fairness_loss.item(),
-                        "Val L1 Loss": l1_loss.item(),
+                        "Val L1 Loss": l1_loss,
                         f"Val {self.model.performance_metric_name}": running_metrics
                         / total,
                     }
@@ -220,7 +222,7 @@ class Trainer:
         train_iter = iter(self.train_loader)
 
         # Save snapshot for training data
-        x, y = next(train_iter)
+        x, y, _, _ = next(train_iter)
         if len(x.shape) > 2 and x.shape[0] > 1:
             x = x[0].unsqueeze(0)
             y = y[0].unsqueeze(0)
@@ -236,7 +238,7 @@ class Trainer:
         val_snapshot_name = f"{self.output_name}_epoch_{epoch}_snapshot_val"
         val_iter = iter(self.val_loader)
 
-        x, y = next(val_iter)
+        x, y, _, _ = next(val_iter)
         if len(x.shape) > 2 and x.shape[0] > 1:
             x = x[0].unsqueeze(0)
             y = y[0].unsqueeze(0)
