@@ -229,6 +229,6 @@ def combine_all_metrics(base_dir):
 
 # Update main block to include both pathologies and metrics
 if __name__ == "__main__":
-    base_dir = "/lotterlab/users/matteo/code/recon_bias/output/evaluation-chex-graphs_20250115_110643"
+    base_dir = "/lotterlab/users/matteo/code/recon_bias/output/evaluation-chex-graphs-new-threshold-bill_20250130_163441"
     combine_all_pathologies(base_dir)
     combine_all_metrics(base_dir)

@@ -1,7 +1,7 @@
 data_root: '/lotterlab/datasets/'
 csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
 output_dir: "./output"
-output_name: "evaluation-chex-graphs"
+output_name: "evaluation-chex-graphs-new-threshold-bill"
 seed: 42
 #number_of_samples: 1
 results_path: "/lotterlab/users/matteo/code/recon_bias/output/evaluation-chex-csv_20250113_132918/evaluation-chex-csv_20250113_132918_chex_results.csv"

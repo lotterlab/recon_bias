@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 import os
 import plotly.express as px
 from PIL import Image
@@ -330,8 +330,23 @@ def plot_classifier_metrics(df, pathologies, reconstruction_models, output_dir):
             )
 
 
-def calculate_fairness_metrics(y_true, y_pred_proba, protected_attribute, threshold=0.5):
+def compute_thresh_eq_sens_spec(scores, y):
+    """Find threshold where sensitivity equals specificity using ROC curve."""
+    fpr, sens, threshs = roc_curve(y, scores)
+    spec = 1 - fpr
+    return threshs[np.argmin(np.abs(spec - sens))]
+
+def calculate_fairness_metrics(y_true, y_pred_proba, protected_attribute, threshold=None):
     """Calculate fairness metrics for binary classification."""
+    # Find optimal threshold if none provided
+    if threshold is None:
+        # Remove any NaN or -1 values before computing threshold
+        valid_mask = ~(np.isnan(y_true) | np.isnan(y_pred_proba) | (y_true == -1))
+        if not valid_mask.any():
+            threshold = 0.5
+        else:
+            threshold = compute_thresh_eq_sens_spec(y_pred_proba[valid_mask], y_true[valid_mask])
+    
     # Convert to binary predictions
     y_pred = (y_pred_proba >= threshold).astype(int)
     
