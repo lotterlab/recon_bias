@@ -3,7 +3,7 @@ import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-
+from ..model.fairness_loss import FairnessLoss
 
 class Trainer:
     def __init__(
@@ -19,6 +19,7 @@ class Trainer:
         output_name="model",
         save_interval=1,
         early_stopping_patience=None,
+        classifier=None,
     ):
         """
         Trainer class for training and validating a model with early stopping.
@@ -63,6 +64,7 @@ class Trainer:
         self.epochs_without_improvement = 0
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
+        self.fairness_loss = FairnessLoss(classifier)
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):
@@ -70,11 +72,11 @@ class Trainer:
             train_loss, train_metric = self.train_epoch(epoch)
 
             # Validation phase
-            val_loss, val_metric = self.validate_epoch(epoch)
+            val_loss, val_metric, val_fairness_loss, val_l1_loss = self.validate_epoch(epoch)
 
             # Log metrics
             self.writer.add_scalars(
-                "Loss", {"Train": train_loss, "Validation": val_loss}, epoch
+                "Loss", {"Train": train_loss, "Validation": val_loss, "Val Fairness Loss": val_fairness_loss, "Val L1 Loss": val_l1_loss}, epoch
             )
             self.writer.add_scalars(
                 f"{self.model.performance_metric_name}",
@@ -124,21 +126,25 @@ class Trainer:
         train_bar = tqdm(
             self.train_loader, desc=f"Epoch {epoch}/{self.num_epochs} [Training]"
         )
-        for inputs, labels in train_bar:
-            inputs = inputs.to(self.device)
+        for x, y, protected_attrs, labels in train_bar:
+            x = x.to(self.device)
+            y = y.to(self.device)
+            protected_attrs = protected_attrs.to(self.device)
             labels = labels.to(self.device)
 
             self.optimizer.zero_grad()
 
-            outputs = self.model(inputs)
-            loss = self.model.criterion(outputs, labels)
+            outputs = self.model(x)
+            loss = self.model.criterion(outputs, y)
+            fairness_loss = self.fairness_loss(x, labels, protected_attrs)
+            loss += fairness_loss
 
             loss.backward()
 
             self.optimizer.step()
 
             running_loss += loss.item()
-            performance_metric, n = self.model.epoch_performance_metric(outputs, labels)
+            performance_metric, n = self.model.epoch_performance_metric(outputs, y)
             running_metrics += performance_metric
             total += n
 
@@ -164,16 +170,23 @@ class Trainer:
             self.val_loader, desc=f"Epoch {epoch}/{self.num_epochs} [Validation]"
         )
         with torch.no_grad():
-            for inputs, labels in val_bar:
-                inputs = inputs.to(self.device)
+            for x, y, protected_attrs, labels in val_bar:
+                x = x.to(self.device)
+                y = y.to(self.device)
+                protected_attrs = protected_attrs.to(self.device)
                 labels = labels.to(self.device)
 
-                outputs = self.model(inputs)
-                loss = self.model.criterion(outputs, labels)
+                outputs = self.model(x)
+                loss = self.model.criterion(outputs, y)
+                l1_loss = loss.item()
+                running_l1_loss += l1_loss
+                fairness_loss = self.fairness_loss(x, labels, protected_attrs)
+                loss += fairness_loss
+                running_fairness_loss += fairness_loss.item()
 
                 running_loss += loss.item()
                 performance_metric, n = self.model.epoch_performance_metric(
-                    outputs, labels
+                    outputs, y
                 )
                 running_metrics += performance_metric
                 total += n
@@ -182,15 +195,19 @@ class Trainer:
                 val_bar.set_postfix(
                     {
                         "Val Loss": running_loss / total,
+                        "Val Fairness Loss": fairness_loss.item(),
+                        "Val L1 Loss": l1_loss.item(),
                         f"Val {self.model.performance_metric_name}": running_metrics
                         / total,
                     }
                 )
 
+        epoch_fairness_loss = running_fairness_loss / total
+        epoch_l1_loss = running_l1_loss / total
         epoch_loss = running_loss / total
         epoch_metric = running_metrics / total
 
-        return epoch_loss, epoch_metric
+        return epoch_loss, epoch_metric, epoch_fairness_loss, epoch_l1_loss
 
     def save_snapshot(self, epoch):
         """

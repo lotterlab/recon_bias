@@ -48,6 +48,7 @@ def main():
     num_train_samples = config.get("num_train_samples", None)
     num_val_samples = config.get("num_val_samples", None)
     network_type = config.get("network_type", "VGG")
+    model_path = config.get("model_path", None)
     network_path = config.get("network_path", None)
     data_root = config["data_root"]
     seed = config.get("seed", 31415)
@@ -72,7 +73,7 @@ def main():
     train_dataset = ReconstructionDataset(
         data_root=data_root,
         csv_path=csv_path,
-        split="train_recon",
+        split="val_recon",
         number_of_samples=num_train_samples,
         seed=seed,
         photon_count=photon_count,
@@ -80,8 +81,8 @@ def main():
     val_dataset = ReconstructionDataset(
         data_root=data_root,
         csv_path=csv_path,
-        split="val_recon",
-        number_of_samples=num_val_samples,
+        split="train_recon",
+        number_of_samples=50,
         seed=seed,
         photon_count=photon_count,
     )
@@ -125,6 +126,12 @@ def main():
     # Add network to classifier
     model.set_network(network)
 
+    # load model
+    model.load_state_dict(torch.load(model_path, map_location=device))
+
+    # load classifier
+    classifier = torch.load(config["classifier_path"], map_location=device)
+
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -141,6 +148,7 @@ def main():
         output_name=output_name,
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
+        classifier=classifier,
     )
 
     # Start training

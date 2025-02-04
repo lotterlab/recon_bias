@@ -72,6 +72,24 @@ class ReconstructionDataset(BaseDataset):
             ]
         )
         print(f"Photon count: {self.photon_count}")
+        self.pathologies = [
+            "Enlarged Cardiomediastinum",
+            "Cardiomegaly",
+            "Lung Opacity",
+            "Lung Lesion",
+            "Edema",
+            "Consolidation",
+            "Pneumonia",
+            "Atelectasis",
+            "Pneumothorax",
+            "Pleural Effusion",
+            "Pleural Other",
+            "Fracture",
+            "Support Devices",
+            "No Finding"
+        ]
+        self.pathologies = sorted(self.pathologies)
+        self.labels = self._process_labels(self.metadata)
 
     def process_image(self, image: np.ndarray) -> tuple:
         """
@@ -112,6 +130,42 @@ class ReconstructionDataset(BaseDataset):
 
         return reconstructed_image
 
+    def _process_labels(self, df):
+        # First identify healthy cases
+        healthy = df["No Finding"] == 1
+        
+        labels = []
+        for pathology in self.pathologies:
+            assert pathology in df.columns
+            
+            if pathology == "No Finding":
+                # Handle NaN in No Finding when other pathologies exist
+                for idx, row in df.iterrows():
+                    if row["No Finding"] != row["No Finding"]:  # check for NaN
+                        if (row[self.pathologies] == 1).sum():  # if any pathology present
+                            df.loc[idx, "No Finding"] = 0
+            elif pathology != "Support Devices":
+                # If healthy, other pathologies (except Support Devices) must be 0
+                df.loc[healthy, pathology] = 0
+                
+            mask = df[pathology]
+            labels.append(mask.values)
+        
+        # Convert to numpy array and transpose to get samples x labels
+        labels = np.asarray(labels).T
+        labels = labels.astype(np.float32)
+        
+        # Convert -1 to NaN
+        labels[labels == -1] = np.nan
+        
+        return torch.from_numpy(labels)
+    
+    def __getitem__(self, idx: int):
+        row = self.metadata.iloc[idx]
+        degraded_tensor, original_tensor, protected_attrs = self._get_item_from_row(row)
+        labels = self.labels[idx]
+        return degraded_tensor, original_tensor, protected_attrs, labels
+
     def _get_item_from_row(self, row) -> tuple:
         """
         Load and process an X-ray image.
@@ -139,7 +193,25 @@ class ReconstructionDataset(BaseDataset):
             original_tensor = self.transform(original_image)
             degraded_tensor = self.transform(degraded_image)
 
-        return degraded_tensor, original_tensor
+        # Convert protected attributes to numeric values
+        sex = float(0 if row["Sex"] == "F" else 1)  # Assuming binary F/M encoding
+        age = float(row["Age"] <= 61)  # Already boolean, convert to float
+        
+        # Map race to numeric values
+        race_mapping = {
+            'Other': 0,
+            'White': 1,
+            'Black': 2,
+            'Native Hawaiian or Other Pacific Islander': 3,
+            'Asian': 4,
+            'American Indian or Alaska Native': 5
+        }
+        race = float(race_mapping.get(row["Mapped_Race"], 0))  # Default to 'Other' if not found
+        
+        # Add protected attributes to the tensor
+        protected_attrs = torch.tensor([sex, age, race])
+
+        return degraded_tensor, original_tensor, protected_attrs
 
     def get_random_sample(self):
         """

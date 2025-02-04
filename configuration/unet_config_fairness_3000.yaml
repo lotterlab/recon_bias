@@ -1,0 +1,21 @@
+output_dir: './output'
+output_name: 'unet-chex-3000-fairness'
+save_interval: 1
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 16
+early_stopping_patience: 5
+
+data_root: '/lotterlab/datasets/'
+csv_path: '/lotterlab/users/matteo/data/CheXpert/metadata.csv'
+lower_slice: 60
+upper_slice: 130
+age_bins: [0, 58, 100]
+photon_count: 3000
+
+network_type: 'UNet'
+model_path: /lotterlab/users/matteo/models/Noise/Chex/unet-chex-05_20250107_144825/checkpoints/unet-chex-05_20250107_144825_epoch_20_final.pth
+seed: 31415
+
+classifier_path: /lotterlab/users/matteo/code/torchxrayvision/output/class_norm01/chex-densenet-class_norm01-best.pt
