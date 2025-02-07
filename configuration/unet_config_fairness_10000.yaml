@@ -1,6 +1,7 @@
 output_dir: './output'
-output_name: 'unet-chex-3000-fairness'
+output_name: 'unet-chex-10000-fairness'
 save_interval: 1
+dataset: 'chex'
 
 num_epochs: 20
 learning_rate: 0.0001

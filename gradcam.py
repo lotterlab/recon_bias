@@ -16,7 +16,7 @@ from torchcam.utils import overlay_mask
 
 from src.data.classification_dataset import ClassificationDataset
 from src.data.dataset import create_balanced_sampler
-from src.data.reconstruction_dataset import ReconstructionDataset
+from src.data.chex_dataset import ReconstructionDataset
 from src.evaluation.classifier_prediction import classifier_predictions
 from src.model.classification.classification_model import (
     AgeCEClassifier,

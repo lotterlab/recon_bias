@@ -11,7 +11,7 @@ import yaml
 from torch import nn
 
 from src.data.classification_dataset import ClassificationDataset
-from src.data.reconstruction_dataset import ReconstructionDataset
+from src.data.chex_dataset import ReconstructionDataset
 from src.evaluation.classifier_prediction import classifier_predictions
 from src.evaluation.evaluation import classifier_evaluation, reconstruction_evaluation
 from src.evaluation.reconstruction_prediction import reconstruction_predictions

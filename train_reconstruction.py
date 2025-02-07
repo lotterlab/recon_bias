@@ -11,7 +11,8 @@ from torch.utils.data import DataLoader
 from src.data.dataset import create_balanced_sampler
 
 # Import your dataset, models, and trainer
-from src.data.reconstruction_dataset import ReconstructionDataset
+from src.data.chex_dataset import ChexDataset
+from src.data.ucsf_dataset import UsfcDataset
 from src.model.classification.classification_model import (
     AgeCEClassifier,
     GenderBCEClassifier,
@@ -22,6 +23,15 @@ from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 
+
+def load_task_models(config, device):
+    if config["dataset"] == "chex":
+        classifier = torch.load(config["path"], map_location=device)
+        classifier.eval()
+        return classifier
+    elif config["dataset"] == "ucsf":
+        classifier = torch.load(config["path"], map_location=device)
+        return classifier
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -69,23 +79,53 @@ def main():
     with open(config_save_path, "w") as config_file:
         yaml.dump(config, config_file, default_flow_style=False)
 
+    if config["dataset"] == "chex":
     # Datasets and DataLoaders
-    train_dataset = ReconstructionDataset(
-        data_root=data_root,
-        csv_path=csv_path,
-        split="val_recon",
-        number_of_samples=num_train_samples,
-        seed=seed,
-        photon_count=photon_count,
-    )
-    val_dataset = ReconstructionDataset(
-        data_root=data_root,
-        csv_path=csv_path,
-        split="train_recon",
-        number_of_samples=50,
-        seed=seed,
-        photon_count=photon_count,
-    )
+        train_dataset = ChexDataset(
+            data_root=data_root,
+            csv_path=csv_path,
+            split="val_recon",
+            number_of_samples=num_train_samples,
+            seed=seed,
+            photon_count=photon_count,
+        )
+        val_dataset = ChexDataset(
+            data_root=data_root,
+            csv_path=csv_path,
+            split="train_recon",
+            number_of_samples=50,
+            seed=seed,
+            photon_count=photon_count,
+        )
+    elif config["dataset"] == "ucsf":
+        transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
+        transform = transforms.Compose(transform)
+        train_dataset = UsfcDataset(
+            data_root=data_root,
+            transform=transform,
+            split="train",
+            number_of_samples=num_train_samples,
+            seed=seed,
+            type=config.get("type", "FLAIR"),
+            sampling_mask=config.get("sampling_mask", "radial"),
+            lower_slice=config.get("lower_slice", None),
+            upper_slice=config.get("upper_slice", None),
+            age_bins=config.get("age_bins", [0, 58, 100]),
+            num_rays=config.get("num_rays", 60),
+        )
+        val_dataset = UsfcDataset(
+            data_root=data_root,
+            transform=transform,
+            split="val",
+            number_of_samples=num_val_samples,
+            seed=seed,
+            type=config.get("type", "FLAIR"),
+            sampling_mask=config.get("sampling_mask", "radial"),
+            lower_slice=config.get("lower_slice", None),
+            upper_slice=config.get("upper_slice", None),
+            age_bins=config.get("age_bins", [0, 58, 100]),
+            num_rays=config.get("num_rays", 60),
+        )
 
     val_sampler = None
     train_sampler = None
@@ -130,7 +170,7 @@ def main():
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     # load classifier
-    classifier = torch.load(config["classifier_path"], map_location=device)
+    task_models = load_task_models(config["task_models"], device)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -148,7 +188,8 @@ def main():
         output_name=output_name,
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
-        classifier=classifier,
+        task_models=task_models,
+        dataset_type=config["dataset"],
     )
 
     # Start training

@@ -30,7 +30,7 @@ def apply_bowtie_filter(sinogram):
     return sinogram * filter_profile[np.newaxis, :]
 
 
-class ReconstructionDataset(BaseDataset):
+class ChexDataset(BaseDataset):
     """Dataset to load X-ray images and process with bowtie filtering and noise."""
 
     def __init__(

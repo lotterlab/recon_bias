@@ -9,7 +9,7 @@ import torch
 import torchvision.transforms as transforms
 import yaml
 
-from src.data.reconstruction_dataset import ReconstructionDataset
+from code.recon_bias.src.data.chex_dataset import ReconstructionDataset
 from src.evaluation.chex_prediction import classifier_predictions
 from src.evaluation.chex_evaluation import plot_classifier_metrics, plot_fairness_metrics, plot_image_metrics
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
@@ -101,6 +101,7 @@ def main():
     output_name = config["output_name"]
     number_of_samples = config.get("number_of_samples", None)
     results_path = config.get("results_path", None)
+    dataset_type = config.get("dataset", "chex")
 
     # Create output directory for evaluation
     output_name = f"{output_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"

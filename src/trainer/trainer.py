@@ -19,7 +19,8 @@ class Trainer:
         output_name="model",
         save_interval=1,
         early_stopping_patience=None,
-        classifier=None,
+        task_models=None,
+        dataset_type="chex",
     ):
         """
         Trainer class for training and validating a model with early stopping.
@@ -64,7 +65,7 @@ class Trainer:
         self.epochs_without_improvement = 0
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
-        self.fairness_loss = FairnessLoss(classifier)
+        self.fairness_loss = FairnessLoss(task_models, dataset_type)
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):

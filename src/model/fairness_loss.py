@@ -4,7 +4,7 @@ from sklearn.metrics import roc_curve
 import numpy as np
 
 class FairnessLoss(nn.Module):
-    def __init__(self, classifier, momentum=0.1):
+    def __init__(self, task_models, momentum=0.1, dataset_type="chex"):
         """
         Initialize the fairness loss module.
         
@@ -13,13 +13,10 @@ class FairnessLoss(nn.Module):
             momentum: Momentum for updating running threshold (default: 0.1)
         """
         super(FairnessLoss, self).__init__()
-        self.classifier = classifier
-        self.classifier.eval()  # Set to evaluation mode
-        for param in self.classifier.parameters():
-            param.requires_grad = False  # Freeze classifier parameters
+        self.task_models = task_models
         self.threshold = 0.5  # Initial threshold
         self.momentum = momentum
-            
+        self.dataset_type = dataset_type
     def update_threshold(self, pred_probs, labels):
         """
         Update running threshold using current batch with momentum.
