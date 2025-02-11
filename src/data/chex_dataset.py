@@ -1,69 +1,34 @@
-import pathlib
-from typing import Callable, Optional
-
-import numpy as np
-from skimage.io import imread
-from skimage.transform import radon, iradon, resize
-import torch
-from torch.utils.data import Dataset
 import os
+import pathlib
+from typing import Optional
+from skimage.transform import radon, iradon, resize
+from skimage.io import imread
+import numpy as np
 import polars as pl
+import torch
 import torchvision.transforms as transforms
+from torch.utils.data import Dataset
+import pandas as pd
 
-from src.data.dataset import BaseDataset
-from src.utils.transformations import min_max_slice_normalization
+def min_max_slice_normalization(scan: torch.Tensor) -> torch.Tensor:
+    scan_min = scan.min()
+    scan_max = scan.max()
+    if scan_max == scan_min:
+        return scan
+    normalized_scan = (scan - scan_min) / (scan_max - scan_min)
+    return normalized_scan
 
+class ChexDataset(Dataset):
 
-def apply_bowtie_filter(sinogram):
-    """
-    Apply a bowtie filter to the Sinogram.
-
-    Parameters:
-    - sinogram: 2D numpy array of the Sinogram.
-
-    Returns:
-    - filtered_sinogram: Sinogram with the bowtie filter applied.
-    """
-    rows, cols = sinogram.shape
-    profile = np.linspace(0.05, 1.0, cols // 2)
-    filter_profile = np.concatenate([profile[::-1], profile])[:cols]
-    return sinogram * filter_profile[np.newaxis, :]
-
-
-class ChexDataset(BaseDataset):
-    """Dataset to load X-ray images and process with bowtie filtering and noise."""
-
-    def __init__(
-        self,
-        data_root: pathlib.Path,
-        csv_path: pathlib.Path,
-        number_of_samples: Optional[int] = 0,
-        seed: Optional[int] = 31415,
-        split: Optional[str] = "train",
-        evaluation=False,
-        photon_count: float = 1e5,
-    ):
-        """
-        Initialize the X-ray Dataset.
-
-        Args:
-            data_root (pathlib.Path): The path to the data directory.
-            csv_path (pathlib.Path): Path to the metadata CSV file.
-            transform (Optional[Callable]): The transform to apply to the data.
-            number_of_samples (Optional[int]): The number of samples to use.
-            seed (Optional[int]): The seed for reproducibility.
-            split (Optional[str]): The dataset split (train/test/val).
-            photon_count (float): The photon count for Poisson noise simulation.
-        """
-        super().__init__(
-            data_root=data_root,
-            csv_path=csv_path,
-            number_of_samples=number_of_samples,
-            seed=seed,
-            split=split,
-            evaluation=evaluation,
-        )
-        self.photon_count = photon_count
+    def __init__(self, config, train=True):
+        super().__init__()
+        self.data_root_A = pathlib.Path(config["dataroot_A"])
+        self.data_root_B = pathlib.Path(config["dataroot_B"])
+        self.csv_path_A = pathlib.Path(config["csv_path_A"])
+        self.csv_path_B = pathlib.Path(config["csv_path_B"])
+        self.number_of_samples = config["number_of_samples"] if "number_of_samples" in config else None
+        self.seed = config["seed"] if "seed" in config else 31415
+        self.train = train
         self.transform = transforms.Compose(
             [
                 transforms.ToTensor(),  # Convert numpy to tensor
@@ -71,7 +36,6 @@ class ChexDataset(BaseDataset):
                 transforms.Lambda(lambda x: x.float()),  # Ensure float32
             ]
         )
-        print(f"Photon count: {self.photon_count}")
         self.pathologies = [
             "Enlarged Cardiomediastinum",
             "Cardiomegaly",
@@ -89,46 +53,34 @@ class ChexDataset(BaseDataset):
             "No Finding"
         ]
         self.pathologies = sorted(self.pathologies)
-        self.labels = self._process_labels(self.metadata)
+        # Load metadata
+        self.metadata_A, self.metadata_B = self._load_metadata()
+        self.labels = self._process_labels(self.metadata_A)
 
-    def process_image(self, image: np.ndarray) -> tuple:
-        """
-        Process the X-ray image with controllable noise levels.
+    def _load_metadata(self):
+        """Load metadata for the dataset from CSV file."""
+        if not self.csv_path_A.exists():
+            raise FileNotFoundError(f"Metadata file not found: {self.csv_path_A}")
+        if not self.csv_path_B.exists():
+            raise FileNotFoundError(f"Metadata file not found: {self.csv_path_B}")
+        
+        df_A = pd.read_csv(self.csv_path_A)
+        df_B = pd.read_csv(self.csv_path_B)
 
-        Parameters:
-        - image: 2D numpy array of the original image
-        - photon_count: Number of photons (lower = more noise)
-
-        Returns:
-        - reconstructed_image: Reconstructed image after processing
-        - metrics: Dictionary with noise metrics
-        """
-        # Normalize input image to [0,1] range
-        image = (image - np.min(image)) / (np.max(image) - np.min(image))
-
-        # Steps 2-5: Same as before
-        theta = np.linspace(0.0, 180.0, max(image.shape), endpoint=False)
-        sinogram = radon(image, theta=theta, circle=False)
-        filtered_sinogram = apply_bowtie_filter(sinogram)
-
-        max_val = np.max(filtered_sinogram)
-        scaled_sinogram = (filtered_sinogram / max_val) * self.photon_count
-        noisy_sinogram = np.random.poisson(scaled_sinogram).astype(float)
-        noisy_sinogram = (noisy_sinogram / self.photon_count) * max_val
-
-        reconstructed_padded_image = iradon(
-            noisy_sinogram, theta=theta, filter_name="hann", circle=False
-        )
-        reconstructed_image = resize(
-            reconstructed_padded_image, image.shape, mode="reflect", anti_aliasing=True
-        )
-
-        # Normalize reconstructed image to [0,1] range
-        reconstructed_image = (reconstructed_image - np.min(reconstructed_image)) / (
-            np.max(reconstructed_image) - np.min(reconstructed_image)
-        )
-
-        return reconstructed_image
+        # Filter for validation split first
+        if self.train:
+            df_A = df_A[df_A["split"] == "val_recon"]
+            df_B = df_B[df_B["split"] == "val_recon"]
+        else:
+            df_A = df_A[df_A["split"] == "val_class"]
+            df_B = df_B[df_B["split"] == "val_class"]
+        
+        # Get total number of validation samples
+        if self.number_of_samples is not None and self.number_of_samples > 0:
+            df_A = df_A.sample(n=self.number_of_samples, random_state=self.seed)
+            df_B = df_B.sample(n=self.number_of_samples, random_state=self.seed)
+        
+        return df_A, df_B
 
     def _process_labels(self, df):
         # First identify healthy cases
@@ -159,43 +111,24 @@ class ChexDataset(BaseDataset):
         labels[labels == -1] = np.nan
         
         return torch.from_numpy(labels)
-    
-    def __getitem__(self, idx: int):
-        row = self.metadata.iloc[idx]
-        degraded_tensor, original_tensor, protected_attrs = self._get_item_from_row(row)
-        labels = self.labels[idx]
-        return degraded_tensor, original_tensor, protected_attrs, labels
 
-    def _get_item_from_row(self, row) -> tuple:
-        """
-        Load and process an X-ray image.
-
-        Parameters:
-        - row: A single row of metadata.
-
-        Returns:
-        - processed_tensor: The processed (reconstructed) image tensor.
-        - original_tensor: The original image tensor.
-        """
+    def __getitem__(self, index):
+        row_A = self.metadata_A.iloc[index]
+        row_B = self.metadata_B.iloc[index]
+        
         # Load the original image
-        image_path = os.path.join(self.data_root, row["Path"])
-        original_image = imread(image_path, as_gray=True).astype(
-            np.float32
-        )  # Convert to float32
-        original_image = min_max_slice_normalization(original_image)
-        original_image = resize(original_image, (256, 256), anti_aliasing=True)
+        image_path_A = os.path.join(self.data_root_A, row_A["Path"])
+        image_A = imread(image_path_A, as_gray=True).astype(np.float32)  # Convert to float32
+        image_A = min_max_slice_normalization(image_A)
+        image_A = torch.from_numpy(image_A).float().unsqueeze(0)
+        image_path_B = os.path.join(self.data_root_B, row_B["Path"])
+        image_B = imread(image_path_B, as_gray=True).astype(np.float32)  # Convert to float32
+        image_B = min_max_slice_normalization(image_B)
+        image_B = resize(image_B, (256, 256))
+        image_B = torch.from_numpy(image_B).float().unsqueeze(0) 
 
-        # Process the image before any resizing
-        degraded_image = self.process_image(original_image)
-
-        # Apply transforms to both images
-        if self.transform:
-            original_tensor = self.transform(original_image)
-            degraded_tensor = self.transform(degraded_image)
-
-        # Convert protected attributes to numeric values
-        sex = float(0 if row["Sex"] == "F" else 1)  # Assuming binary F/M encoding
-        age = float(row["Age"] <= 61)  # Already boolean, convert to float
+        sex = float(0 if row_A["Sex"] == "F" else 1)  # Assuming binary F/M encoding
+        age = float(row_A["Age"] <= 61)  # Already boolean, convert to float
         
         # Map race to numeric values
         race_mapping = {
@@ -206,48 +139,13 @@ class ChexDataset(BaseDataset):
             'Asian': 4,
             'American Indian or Alaska Native': 5
         }
-        race = float(race_mapping.get(row["Mapped_Race"], 0))  # Default to 'Other' if not found
+        race = float(race_mapping.get(row_A["Mapped_Race"], 0))  # Default to 'Other' if not found
         
         # Add protected attributes to the tensor
         protected_attrs = torch.tensor([sex, age, race])
 
-        return degraded_tensor, original_tensor, protected_attrs
+        
+        return image_A, image_B, protected_attrs, self.labels[index]
 
-    def get_random_sample(self):
-        """
-        Fetch a random sample from the dataset.
-
-        Returns:
-        - A single data sample (processed_tensor, original_tensor).
-        """
-        idx = np.random.randint(0, len(self.metadata))
-        return self.__getitem__(idx)
-
-    def get_patient_data(self, patient_id):
-        """
-        Fetch all slices for a given patient.
-
-        Parameters:
-        - patient_id: Unique identifier for the patient.
-
-        Returns:
-        - slices: List of tuples (processed_tensor, original_tensor) for all slices.
-        """
-        patient_slices_metadata = self.metadata.filter(
-            pl.col("PatientID") == patient_id
-        )
-        patient_slices_metadata = patient_slices_metadata.sort("slice_id")
-
-        # If no slices found, return empty
-        if len(patient_slices_metadata) == 0:
-            print(f"No slices found for PatientID={patient_id}")
-            return []
-
-        # Collect all slices for the patient
-        slices = []
-        for row_idx in range(len(patient_slices_metadata)):
-            row = patient_slices_metadata.row(row_idx, named=True)
-            slice_tensor, labels = self._get_item_from_row(row)
-            slices.append((slice_tensor, labels))
-
-        return slices
+    def __len__(self):
+        return len(self.metadata_A)

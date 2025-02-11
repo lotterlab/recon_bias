@@ -12,7 +12,7 @@ from src.data.dataset import create_balanced_sampler
 
 # Import your dataset, models, and trainer
 from src.data.chex_dataset import ChexDataset
-from src.data.ucsf_dataset import UsfcDataset
+from src.data.ucsf_dataset import UcsfDataset
 from src.model.classification.classification_model import (
     AgeCEClassifier,
     GenderBCEClassifier,
@@ -26,7 +26,7 @@ from src.utils.transformations import min_max_slice_normalization
 
 def load_task_models(config, device):
     if config["dataset"] == "chex":
-        classifier = torch.load(config["path"], map_location=device)
+        classifier = torch.load(config["classifier_path"], map_location=device)
         classifier.eval()
         return classifier
     elif config["dataset"] == "ucsf":
@@ -50,21 +50,13 @@ def main():
 
     # Extract parameters from the configuration
     output_dir = config["output_dir"]
-    csv_path = config["csv_path"]
     output_name = config["output_name"]
     num_epochs = config["num_epochs"]
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
-    num_train_samples = config.get("num_train_samples", None)
-    num_val_samples = config.get("num_val_samples", None)
-    network_type = config.get("network_type", "VGG")
     model_path = config.get("model_path", None)
-    network_path = config.get("network_path", None)
-    data_root = config["data_root"]
-    seed = config.get("seed", 31415)
     save_interval = config.get("save_interval", 1)
     early_stopping_patience = config.get("early_stopping_patience", None)
-    photon_count = config.get("photon_count", 1e5)
 
     # Append timestamp to output_name to make it unique
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -82,49 +74,17 @@ def main():
     if config["dataset"] == "chex":
     # Datasets and DataLoaders
         train_dataset = ChexDataset(
-            data_root=data_root,
-            csv_path=csv_path,
-            split="val_recon",
-            number_of_samples=num_train_samples,
-            seed=seed,
-            photon_count=photon_count,
+            config=config,
         )
         val_dataset = ChexDataset(
-            data_root=data_root,
-            csv_path=csv_path,
-            split="train_recon",
-            number_of_samples=50,
-            seed=seed,
-            photon_count=photon_count,
+            config=config,
         )
     elif config["dataset"] == "ucsf":
-        transform = [min_max_slice_normalization, lambda x: transforms.functional.resize(x.unsqueeze(0), (256, 256)).squeeze(0)]
-        transform = transforms.Compose(transform)
-        train_dataset = UsfcDataset(
-            data_root=data_root,
-            transform=transform,
-            split="train",
-            number_of_samples=num_train_samples,
-            seed=seed,
-            type=config.get("type", "FLAIR"),
-            sampling_mask=config.get("sampling_mask", "radial"),
-            lower_slice=config.get("lower_slice", None),
-            upper_slice=config.get("upper_slice", None),
-            age_bins=config.get("age_bins", [0, 58, 100]),
-            num_rays=config.get("num_rays", 60),
+        train_dataset = UcsfDataset(
+            config=config,
         )
-        val_dataset = UsfcDataset(
-            data_root=data_root,
-            transform=transform,
-            split="val",
-            number_of_samples=num_val_samples,
-            seed=seed,
-            type=config.get("type", "FLAIR"),
-            sampling_mask=config.get("sampling_mask", "radial"),
-            lower_slice=config.get("lower_slice", None),
-            upper_slice=config.get("upper_slice", None),
-            age_bins=config.get("age_bins", [0, 58, 100]),
-            num_rays=config.get("num_rays", 60),
+        val_dataset = UcsfDataset(
+            config=config,
         )
 
     val_sampler = None
@@ -135,31 +95,25 @@ def main():
         train_dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=8,
+        num_workers=4,
         sampler=train_sampler,
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=8,
+        num_workers=4,
         sampler=val_sampler,
     )
 
     # Device configuration
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()
     model = model.to(device)
 
-    # Model
-    if network_type == "VGG":
-        network = VGGReconstructionNetwork(get_configs("vgg16"), network_path)
-    elif network_type == "UNet":
-        network = UNet()
-    else:
-        raise ValueError(f"Unknown network type: {network_type}")
+    network = UNet()
 
     network = network.to(device)
 
@@ -170,7 +124,7 @@ def main():
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     # load classifier
-    task_models = load_task_models(config["task_models"], device)
+    task_models = load_task_models(config, device)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -190,6 +144,7 @@ def main():
         early_stopping_patience=early_stopping_patience,
         task_models=task_models,
         dataset_type=config["dataset"],
+        fairness_lambda=config["fairness_lambda"],
     )
 
     # Start training
