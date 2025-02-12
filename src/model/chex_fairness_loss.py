@@ -108,23 +108,27 @@ class ChexFairnessLoss(nn.Module):
             
             if len(attr_values) < 2:
                 continue
+
+            for class_idx in range(pred_probs.size(1)):
+                class_pred_probs = pred_probs[:, class_idx].unsqueeze(1)
+                class_labels = labels[:, class_idx].unsqueeze(1)
                 
-            # Get rates for each group
-            group_rates = self.calculate_group_rates(pred_probs, labels, attr_values, attr)
+                # Get rates for each group
+                group_rates = self.calculate_group_rates(class_pred_probs, class_labels, attr_values, attr)
             
-            if len(group_rates) < 2:
-                continue
+                if len(group_rates) < 2:
+                    continue
+                    
+                # Calculate max difference in TPR and FPR across all pairs
+                tpr_values = torch.tensor([rates['tpr'] for rates in group_rates])
+                fpr_values = torch.tensor([rates['fpr'] for rates in group_rates])
                 
-            # Calculate max difference in TPR and FPR across all pairs
-            tpr_values = torch.tensor([rates['tpr'] for rates in group_rates])
-            fpr_values = torch.tensor([rates['fpr'] for rates in group_rates])
-            
-            tpr_diff = torch.max(tpr_values) - torch.min(tpr_values)
-            fpr_diff = torch.max(fpr_values) - torch.min(fpr_values)
-            
-            # EOODs is average of TPR difference and FPR difference
-            eodds = (tpr_diff + fpr_diff) / 2
-            max_eodds = torch.maximum(max_eodds, eodds)
+                tpr_diff = torch.max(tpr_values) - torch.min(tpr_values)
+                fpr_diff = torch.max(fpr_values) - torch.min(fpr_values)
+                
+                # EOODs is average of TPR difference and FPR difference
+                eodds = (tpr_diff + fpr_diff) / 2
+                max_eodds = torch.maximum(max_eodds, eodds)
         
         return max_eodds
     
