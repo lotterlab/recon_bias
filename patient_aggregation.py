@@ -29,7 +29,7 @@ from src.model.classification.resnet_classification_network import (
     ResNetClassifierNetwork,
 )
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.unet import UNet
+from code.recon_bias.src.model.reconstruction.chex_unet import UNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.utils.mock_data import get_mock_data
 from src.utils.transformations import min_max_slice_normalization

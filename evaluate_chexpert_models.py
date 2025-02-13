@@ -13,7 +13,7 @@ from code.recon_bias.src.data.chex_dataset import ReconstructionDataset
 from src.evaluation.chex_prediction import classifier_predictions
 from src.evaluation.chex_evaluation import plot_classifier_metrics, plot_fairness_metrics, plot_image_metrics
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.unet import UNet
+from code.recon_bias.src.model.reconstruction.chex_unet import UNet
 from src.model.reconstruction.GAN import UnetGenerator
 from src.model.classification.torchxrayvision import (
     CheX_Dataset,

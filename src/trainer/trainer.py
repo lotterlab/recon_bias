@@ -3,7 +3,7 @@ import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from ..model.chex_fairness_loss import ChexFairnessLoss
+from fairness.fairness_loss import FairnessLoss
 
 class Trainer:
     def __init__(
@@ -19,8 +19,7 @@ class Trainer:
         output_name="model",
         save_interval=1,
         early_stopping_patience=None,
-        task_models=None,
-        dataset_type="chex",
+        classifier_models=None,
         fairness_lambda=1
     ):
         """
@@ -66,8 +65,7 @@ class Trainer:
         self.epochs_without_improvement = 0
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
-        self.fairness_loss = ChexFairnessLoss(task_models)
-        self.fairness_lambda = fairness_lambda
+        self.fairness_loss = FairnessLoss(classifier_models, fairness_lambda)
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):
@@ -140,7 +138,7 @@ class Trainer:
             outputs = self.model(x)
             loss = self.model.criterion(outputs, y)
             fairness_loss = self.fairness_loss(x, labels, protected_attrs)
-            loss += self.fairness_lambda * fairness_loss
+            loss += fairness_loss
 
             loss.backward()
 

@@ -52,7 +52,7 @@ class upsample_block(nn.Module):
         return x
 
 
-class UNet(nn.Module):
+class ChexUNet(nn.Module):
     def __init__(self):
         super().__init__()
 

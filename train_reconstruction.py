@@ -18,20 +18,45 @@ from src.model.classification.classification_model import (
     GenderBCEClassifier,
 )
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.unet import UNet
+from src.model.reconstruction.chex_unet import ChexUNet
+from src.model.reconstruction.ucsf_unet import UcsfUNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
+from fairness.classification_model import TGradeBCEClassifier, TTypeBCEClassifier
+from fairness.resnet_classification_network import ResNetClassifierNetwork
 
 
-def load_task_models(config, device):
+def load_classifier_models(config, device):
     if config["dataset"] == "chex":
         classifier = torch.load(config["classifier_path"], map_location=device)
-        classifier.eval()
+        for param in classifier.parameters():
+            param.requires_grad = False
         return classifier
     elif config["dataset"] == "ucsf":
-        classifier = torch.load(config["path"], map_location=device)
-        return classifier
+        task_models = {}
+        for classifier_config in config["classifiers"]:
+            if classifier_config["name"] == "TGradeBCEClassifier":
+                classifier = TGradeBCEClassifier()
+            elif classifier_config["name"] == "TTypeBCEClassifier":
+                classifier = TTypeBCEClassifier()
+            classifier = classifier.to(device)
+
+            network = ResNetClassifierNetwork(num_classes=classifier.num_classes
+                                                , resnet_version="resnet18")
+            
+            network = network.to(device)
+            classifier.set_network(network)
+            classifier.load_state_dict(torch.load(classifier_config["path"], map_location=device))
+            for param in classifier.parameters():
+                param.requires_grad = False
+            task_models[classifier_config["name"]] = classifier
+
+        def apply_task_models(x):
+            first_output = task_models["TGradeBCEClassifier"](x)
+            second_output = task_models["TTypeBCEClassifier"](x)
+            return torch.cat((first_output, second_output), dim=1)
+        return apply_task_models
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -107,14 +132,17 @@ def main():
     )
 
     # Device configuration
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()
     model = model.to(device)
 
-    network = UNet()
-
+    if config["dataset"] == "chex":
+        network = ChexUNet()
+    elif config["dataset"] == "ucsf":
+        network = UcsfUNet()
+        
     network = network.to(device)
 
     # Add network to classifier
@@ -124,7 +152,7 @@ def main():
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     # load classifier
-    task_models = load_task_models(config, device)
+    classifier_models = load_classifier_models(config, device)
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -142,8 +170,7 @@ def main():
         output_name=output_name,
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
-        task_models=task_models,
-        dataset_type=config["dataset"],
+        classifier_models=classifier_models,
         fairness_lambda=config["fairness_lambda"],
     )
 

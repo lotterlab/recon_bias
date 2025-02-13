@@ -13,9 +13,8 @@ sys.path.append(root_dir)
 
 # Now use absolute imports instead of relative ones
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.unet import UNet
+from src.model.reconstruction.chex_unet import UNet
 from src.model.reconstruction.GAN import UnetGenerator
-from ucsf_dataset import UcsfDataset
 from src.utils.transformations import min_max_slice_normalization
 
 def load_reconstruction_model(model_path, device) -> torch.nn.Module:

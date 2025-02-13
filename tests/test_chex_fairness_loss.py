@@ -1,6 +1,6 @@
 import torch
 import pytest
-from src.model.chex_fairness_loss import ChexFairnessLoss
+from fairness.fairness_loss import FairnessLoss
 
 class MockClassifier(torch.nn.Module):
     def forward(self, x):

@@ -3,8 +3,8 @@ import torch.nn as nn
 from sklearn.metrics import roc_curve
 import numpy as np
 
-class ChexFairnessLoss(nn.Module):
-    def __init__(self, classifier, momentum=0.1):
+class FairnessLoss(nn.Module):
+    def __init__(self, classifier, fairness_lambda=1, momentum=0.1):
         """
         Initialize the fairness loss module.
         
@@ -12,10 +12,11 @@ class ChexFairnessLoss(nn.Module):
             classifier: Pre-trained classifier model
             momentum: Momentum for updating running threshold (default: 0.1)
         """
-        super(ChexFairnessLoss, self).__init__()
+        super(FairnessLoss, self).__init__()
         self.classifier = classifier
         self.threshold = 0.5  # Initial threshold
         self.momentum = momentum
+        self.fairness_lambda = fairness_lambda
 
     def update_threshold(self, pred_probs, labels):
         """
@@ -152,5 +153,5 @@ class ChexFairnessLoss(nn.Module):
         
         eodds = self.calculate_eodds(pred_probs, labels, protected_attrs)
         loss = eodds ** 2
-        
-        return loss
+
+        return loss * self.fairness_lambda

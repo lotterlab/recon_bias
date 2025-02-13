@@ -13,7 +13,7 @@ sys.path.append(root_dir)
 
 # Now use absolute imports instead of relative ones
 from src.model.reconstruction.reconstruction_model import ReconstructionModel
-from src.model.reconstruction.unet import UNet
+from code.recon_bias.src.model.reconstruction.chex_unet import UNet
 from src.model.reconstruction.GAN import UnetGenerator
 from chex_dataset import ChexDataset  # assuming this is in the same directory
 

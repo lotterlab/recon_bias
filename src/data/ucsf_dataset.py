@@ -37,12 +37,11 @@ class UcsfDataset(Dataset):
         self.sampling_mask = config.sampling_mask if hasattr(config, 'sampling_mask') else 'radial'
         
         # Convert dataroot to pathlib.Path
-        self.data_root = pathlib.Path(config.dataroot)
+        self.data_root = pathlib.Path(config["dataroot"])
         
         # Set up dataset parameters from options
         self.number_of_samples = config["number_of_samples"] if "number_of_samples" in config else None
         self.seed = config["seed"] if "seed" in config else 31415
-        self.split = config["phase"]  # use CycleGAN's phase (train/test) as split
         self.type = config["type"] if "type" in config else 'T2'
         self.pathology = config["pathology"] if "pathology" in config else None
         self.lower_slice = config["lower_slice"] if "lower_slice" in config else None
@@ -76,9 +75,11 @@ class UcsfDataset(Dataset):
             df = df.filter(pl.col("slice_id") <= self.upper_slice)
 
         if self.train:
-            df = df.filter(pl.col("split") == "train")
-        else:
             df = df.filter(pl.col("split") == "val")
+        else:
+            df = df.filter(pl.col("split") == "train")
+            # select 10000 samples
+            df = df.sample(n=10000, seed=self.seed)
             
         # Sample if number_of_samples is specified
         if self.number_of_samples is not None and self.number_of_samples > 0:
@@ -163,14 +164,16 @@ class UcsfDataset(Dataset):
         # Prepare for CycleGAN (both need to be 3D tensors: C×H×W)
         slice_tensor = slice_tensor.unsqueeze(0)
         undersampled_tensor = undersampled_tensor.unsqueeze(0)
+
+
+        sex = float(0 if row["sex"] == "F" else 1)
+        age = float(row["age_at_mri"] <= 58)
+
+        grade = float(0 if int(row["who_cns_grade"]) <= 3 else 1)
+        type = float(1 if row["final_diagnosis"] == "Glioblastoma, IDH-wildtype" else 0)
         
         # Return in CycleGAN format but using your file paths
-        return {
-            'A': undersampled_tensor,  # undersampled image
-            'B': slice_tensor,         # fully sampled image
-            'A_paths': str(row["file_path"]),
-            'B_paths': str(row["file_path"])
-        }
+        return undersampled_tensor, slice_tensor, torch.tensor([sex, age]), torch.tensor([grade, type])
 
     def __len__(self):
         """Return the total number of images in the dataset."""
