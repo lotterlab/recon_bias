@@ -86,6 +86,4 @@ class UcsfUNet(nn.Module):
 
         outputs = self.outputs(u4)
 
-        outputs = torch.sigmoid(outputs)
-
         return outputs
