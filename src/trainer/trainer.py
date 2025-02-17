@@ -137,7 +137,7 @@ class Trainer:
 
             outputs = self.model(x)
             loss = self.model.criterion(outputs, y)
-            fairness_loss = self.fairness_loss(x, labels, protected_attrs)
+            fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
             loss += fairness_loss
 
             loss.backward()
