@@ -32,6 +32,7 @@ def load_classifier_models(config, device):
         classifier = torch.load(config["classifier_path"], map_location=device)
         for param in classifier.parameters():
             param.requires_grad = False
+        classifier.eval()
         return classifier
     elif config["dataset"] == "ucsf":
         task_models = {}

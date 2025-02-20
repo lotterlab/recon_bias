@@ -178,3 +178,29 @@ class UcsfDataset(Dataset):
     def __len__(self):
         """Return the total number of images in the dataset."""
         return len(self.metadata)
+
+    def compute_sample_weights(self):
+        """
+        Computes weights for each sample in the dataset based on the frequency 
+        of the combination of sensitive attributes (sex, age, race).
+        
+        Args:
+            dataset (Dataset): An instance of ChexDataset.
+            
+        Returns:
+            List[float]: A list of weights for each sample.
+        """
+        group_counts = {}
+        group_keys = []
+
+        # Iterate over the dataset to record each sample's sensitive attribute group
+        for idx in range(self.__len__()):
+            _, _, protected_attrs, _ = self[idx]
+            # Convert tensor to tuple to use as dict key
+            group = tuple(protected_attrs.tolist())
+            group_keys.append(group)
+            group_counts[group] = group_counts.get(group, 0) + 1
+
+        # Assign weight = 1 / (group frequency)
+        weights = [1.0 / group_counts[group] for group in group_keys]
+        return weights

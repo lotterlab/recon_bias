@@ -183,7 +183,7 @@ class Trainer:
                 loss = self.model.criterion(outputs, y)
                 l1_loss = loss.item()
                 running_l1_loss += l1_loss
-                fairness_loss = self.fairness_loss(x, labels, protected_attrs)
+                fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
                 loss += fairness_loss
                 running_fairness_loss += fairness_loss.item()
 

@@ -1,13 +1,13 @@
 output_dir: './output'
-output_name: 'unet-fairness-chex-10000-1'
+output_name: 'unet-fairness-chex-10000-l0001-t03-ce'
 save_interval: 5
 dataset: 'chex'
 
-fairness_lambda: 1
+fairness_lambda: 0.001
 
 num_epochs: 20
 learning_rate: 0.0001
-batch_size: 32
+batch_size: 64
 early_stopping_patience: 5
 
 csv_path_A: /lotterlab/project_data/reconstruction_bias/CheXpert_noise/metadata_photon_10000.csv
