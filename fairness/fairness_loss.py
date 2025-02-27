@@ -187,7 +187,7 @@ class FairnessLoss(nn.Module):
             ce_loss = torch.tensor(0.0, device=pred_probs.device)
         else:
             # Mask out NaN values for BCE loss
-            ce_loss = F.cross_entropy(
+            ce_loss = F.binary_cross_entropy(
                 pred_probs[valid_mask],
                 labels[valid_mask],
                 reduction='mean'
@@ -212,5 +212,5 @@ class FairnessLoss(nn.Module):
         norm_fairness_loss = fairness_loss / (self.running_fairness_avg + eps)
 
         # Combine the scaled losses
-        total_loss = self.fairness_lambda * (norm_fairness_loss + norm_ce_loss)
+        total_loss = self.fairness_lambda * (norm_fairness_loss + 0.5 * norm_ce_loss)
         return total_loss
