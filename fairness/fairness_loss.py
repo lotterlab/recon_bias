@@ -1,216 +1,130 @@
 import torch
 import torch.nn as nn
-from sklearn.metrics import roc_curve
-import numpy as np
 import torch.nn.functional as F
 
+class BiasPredictor(nn.Module):
+    def __init__(self, input_dim, hidden_dim=32):
+        super(BiasPredictor, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x.squeeze(-1)
+
 class FairnessLoss(nn.Module):
-    def __init__(self, classifier, fairness_lambda=1, momentum=0.1, temperature=0.3):
-        """
-        Initialize the fairness loss module.
-        
-        Args:
-            classifier: Pre-trained classifier model.
-            fairness_lambda: Weight for the fairness loss.
-            momentum: Momentum for updating running threshold (default: 0.1).
-            temperature: Temperature for the smooth approximation of the threshold (default: 0.1).
-        """
+    def __init__(self, classifier, momentum=0.1, device=None):
         super(FairnessLoss, self).__init__()
         self.classifier = classifier
-        self.threshold = 0.5  # Initial threshold
         self.momentum = momentum
-        self.fairness_lambda = fairness_lambda
-        self.temperature = temperature
+        self.device = device
+        
+        # Feature extractor (frozen)
+        self.feature_extractor = nn.Sequential(*list(classifier.children())[:-1])
+        for param in self.feature_extractor.parameters():
+            param.requires_grad = False
+        
+        # Initialize bias predictor to None - we'll create it with the correct dimensions on first forward pass
+        self.bias_predictor = None
 
         # Initialize running averages for normalization
         self.register_buffer("running_ce_avg", torch.tensor(1.0))
-        self.register_buffer("running_fairness_avg", torch.tensor(1.0))
-        self.running_decay = 0.9  # decay factor for running average updates
+        self.register_buffer("running_adv_avg", torch.tensor(1.0))
+        self.running_decay = 0.9
+        self.eps = 1e-8
 
-    def update_threshold(self, pred_probs, labels):
-        """
-        Update running threshold using the current batch with momentum.
-        
-        Args:
-            pred_probs: Predicted probabilities [batch_size]
-            labels: True labels [batch_size]
-        """
-        valid_mask = ~torch.isnan(labels) & ~torch.isnan(pred_probs)
-        if valid_mask.sum() == 0:
-            return
+    def correlation_loss(self, predictions, targets):
+        # Ensure inputs are valid (no NaN or Inf)
+        if torch.isnan(predictions).any() or torch.isnan(targets).any() or \
+           torch.isinf(predictions).any() or torch.isinf(targets).any():
+            return torch.tensor(0.0, device=predictions.device)
             
-        # Detach values for ROC computation
-        scores = pred_probs[valid_mask].detach().cpu().numpy()
-        y = labels[valid_mask].detach().cpu().numpy()
+        vx = predictions - predictions.mean()
+        vy = targets - targets.mean()
         
-        # Compute ROC and find threshold where sensitivity is closest to specificity
-        fpr, sens, threshs = roc_curve(y, scores)
-        spec = 1 - fpr
-        new_threshold = threshs[np.argmin(np.abs(spec - sens))]
-        
-        # Update running threshold with momentum
-        self.threshold = (1 - self.momentum) * self.threshold + self.momentum * new_threshold
+        # Check for zero division
+        if torch.sum(vx ** 2).item() < self.eps or torch.sum(vy ** 2).item() < self.eps:
+            return torch.tensor(0.0, device=predictions.device)
+            
+        corr = torch.sum(vx * vy) / (torch.sqrt(torch.sum(vx ** 2) * torch.sum(vy ** 2)) + self.eps)
+        return corr ** 2
 
-    def calculate_group_rates(self, pred_probs, labels, attr_values, attr):
-        """
-        Calculate prediction rates for each group using a differentiable soft threshold.
-        
-        Args:
-            pred_probs: Predicted probabilities [batch_size]
-            labels: True labels [batch_size]
-            attr_values: Unique values in the protected attribute
-            attr: Protected attribute values [batch_size]
-            
-        Returns:
-            List of dictionaries with TPR and FPR for each group.
-        """
-        group_rates = []
-        
-        # Use a sigmoid with a temperature to create differentiable "soft" predictions
-        predictions = torch.sigmoid((pred_probs - self.threshold) / self.temperature)
-        
-        # Create a valid mask to filter out invalid entries
-        attr = attr.unsqueeze(1)
-        valid_mask = ~(torch.isnan(labels) | torch.isnan(pred_probs) | torch.isnan(attr) | 
-                       (labels == -1) | (pred_probs == -1) | (attr == -1))
-        
-        for value in attr_values:
-            # Mask for the current group
-            group_mask = (attr == value) & valid_mask
-            pos_mask = group_mask & (labels == 1)
-            neg_mask = group_mask & (labels == 0)
-            
-            if not group_mask.any():
-                continue
-                
-            # Compute rates using the soft predictions
-            tpr = predictions[pos_mask].mean() if pos_mask.sum() > 0 else torch.tensor(0.0, device=pred_probs.device)
-            fpr = predictions[neg_mask].mean() if neg_mask.sum() > 0 else torch.tensor(0.0, device=pred_probs.device)
-            
-            group_rates.append({'tpr': tpr, 'fpr': fpr})
-            
-        return group_rates
-
-    def calculate_eodds(self, pred_probs, labels, protected_attrs):
-        """
-        Calculate the Equal Opportunity Difference (EOODs) for multiple protected attributes.
-        
-        Args:
-            pred_probs: Predicted probabilities from classifier [batch_size, num_classes]
-            labels: True labels [batch_size, num_classes]
-            protected_attrs: Protected attributes [batch_size, num_attributes] (e.g., sex, age, gender)
-            
-        Returns:
-            Maximum EOODs value across all protected attributes.
-        """
-        pred_probs = pred_probs.float()
-        labels = labels.float()
-        protected_attrs = protected_attrs.float()
-        
-        max_eodds = torch.tensor(0.0, device=pred_probs.device)
-        
-        # Loop over each protected attribute
-        for attr_idx in range(protected_attrs.size(1)):
-            attr = protected_attrs[:, attr_idx]
-            attr_values = torch.unique(attr[~torch.isnan(attr)])
-            
-            if len(attr_values) < 2:
-                continue
-
-            # Loop over each class (for multi-class tasks)
-            for class_idx in range(pred_probs.size(1)):
-                class_pred_probs = pred_probs[:, class_idx].unsqueeze(1)
-                class_labels = labels[:, class_idx].unsqueeze(1)
-                
-                # Compute group rates using the soft thresholding mechanism
-                group_rates = self.calculate_group_rates(class_pred_probs, class_labels, attr_values, attr)
-            
-                if len(group_rates) < 2:
-                    continue
-                    
-                # Extract TPR and FPR for each group
-                tpr_values = torch.stack([rates['tpr'] for rates in group_rates])
-                fpr_values = torch.stack([rates['fpr'] for rates in group_rates])
-                
-                tpr_diff = torch.max(tpr_values) - torch.min(tpr_values)
-                fpr_diff = torch.max(fpr_values) - torch.min(fpr_values)
-                
-                # Equalized odds difference: average of TPR and FPR differences
-                eodds = (tpr_diff + fpr_diff) / 2
-                max_eodds = torch.maximum(max_eodds, eodds)
-        
-        return max_eodds
-    
-    def calculate_group_ce_loss(self, pred_probs, labels, protected_attrs):
-        """
-        For each protected attribute and each class, compute the binary cross entropy (BCE)
-        loss per group and then penalize differences across groups (using a max-min difference).
-        """
-        total_loss = 0.0
-        count = 0
-        # Loop over each protected attribute.
-        for attr_idx in range(protected_attrs.size(1)):
-            attr = protected_attrs[:, attr_idx]
-            attr_values = torch.unique(attr[~torch.isnan(attr)])
-            if len(attr_values) < 2:
-                continue
-            # Loop over each class.
-            for class_idx in range(pred_probs.size(1)):
-                group_losses = []
-                for value in attr_values:
-                    group_mask = (attr == value)
-                    valid_mask = group_mask & ~torch.isnan(labels[:, class_idx])
-                    if valid_mask.sum() > 0:
-                        loss_val = F.binary_cross_entropy(
-                            pred_probs[valid_mask, class_idx],
-                            labels[valid_mask, class_idx]
-                        )
-                        group_losses.append(loss_val)
-                if len(group_losses) >= 2:
-                    group_losses_tensor = torch.stack(group_losses)
-                    diff_loss = torch.max(group_losses_tensor) - torch.min(group_losses_tensor)
-                    total_loss += diff_loss
-                    count += 1
-        if count > 0:
-            return total_loss / count
-        else:
-            return torch.tensor(0.0, device=pred_probs.device)
-
-    
     def forward(self, reconstructed_images, labels, protected_attrs):
-        # Compute classifier predictions on reconstructed images
-        pred_probs = torch.sigmoid(self.classifier(reconstructed_images))
+        # Extract features (frozen)
+        features = self.feature_extractor(reconstructed_images)
+            
+        # Flatten the features to handle various feature shapes
+        if features.dim() > 2:
+            features = features.reshape(features.size(0), -1)
         
-        # For multi-label classification, compute CE loss only on non-NaN labels
-        valid_mask = ~torch.isnan(labels)
-        if valid_mask.sum() == 0:
+        # Initialize the bias predictor with the correct feature dimension if not already created
+        if self.bias_predictor is None:
+            feature_dim = features.size(1)
+            self.bias_predictor = BiasPredictor(feature_dim)
+            if self.device is not None:
+                self.bias_predictor.to(self.device)
+            print(f"Initialized BiasPredictor with input dimension: {feature_dim}")
+
+        # Classification loss
+        pred_logits = self.classifier(reconstructed_images)
+        pred_probs = torch.sigmoid(pred_logits)
+        
+        # Ensure probabilities are in valid range for BCE
+        pred_probs = torch.clamp(pred_probs, min=1e-7, max=1-1e-7)
+
+        # Create a valid mask for labels
+        valid_labels_mask = ~torch.isnan(labels)
+        if not valid_labels_mask.any():  # No valid labels
             ce_loss = torch.tensor(0.0, device=pred_probs.device)
         else:
-            # Mask out NaN values for BCE loss
-            ce_loss = F.binary_cross_entropy(
-                pred_probs[valid_mask],
-                labels[valid_mask],
-                reduction='mean'
-            )
-            #ce_loss = self.calculate_group_ce_loss(pred_probs, labels, protected_attrs)
-        
-        # Update threshold using only valid predictions
-        self.update_threshold(pred_probs[valid_mask], labels[valid_mask])
-        
-        # Compute fairness loss based on equalized odds difference
-        eodds = self.calculate_eodds(pred_probs, labels, protected_attrs)
-        fairness_loss = eodds ** 2
+            valid_labels = torch.clamp(labels[valid_labels_mask], min=0.0, max=1.0)
+            valid_preds = pred_probs[valid_labels_mask]
+            
+            ce_loss = F.binary_cross_entropy(valid_preds, valid_labels, reduction='mean')
 
-        # Update running averages and normalize losses
-        with torch.no_grad():
-            self.running_ce_avg = self.running_decay * self.running_ce_avg + (1 - self.running_decay) * ce_loss.detach()
-            self.running_fairness_avg = self.running_decay * self.running_fairness_avg + (1 - self.running_decay) * fairness_loss.detach()
+        # Handle protected attributes - ensure they're valid
+        if protected_attrs is None or protected_attrs.size(0) == 0:
+            adv_loss = torch.tensor(0.0, device=features.device)
+            adv_loss_fe = torch.tensor(0.0, device=features.device)
+        else:
+            # Create valid mask for protected attributes - check ALL dimensions for NaN
+            # First check if it's multi-dimensional
+            if protected_attrs.dim() > 1 and protected_attrs.size(1) > 1:
+                # Check across all columns by creating a mask that requires all columns to be valid
+                valid_attr_mask = ~torch.isnan(protected_attrs).any(dim=1)
+            else:
+                # For single column, just check that column
+                valid_attr_mask = ~torch.isnan(protected_attrs.reshape(-1))
+            
+            if not valid_attr_mask.any():  # No valid protected attributes
+                adv_loss = torch.tensor(0.0, device=features.device)
+                adv_loss_fe = torch.tensor(0.0, device=features.device)
+            else:
+                # Apply bias predictor on all features first
+                bias_pred = self.bias_predictor(features.detach())
+                bias_pred_fe = self.bias_predictor(features)
+                
+                # Filter out valid entries for loss computation
+                valid_bias_pred = bias_pred[valid_attr_mask]
+                valid_bias_pred_fe = bias_pred_fe[valid_attr_mask]
+                
+                # Use first column for correlation calculation, but only from rows that are fully valid
+                valid_protected = protected_attrs[valid_attr_mask, 0]
+                
+                # Compute adversarial losses
+                adv_loss = self.correlation_loss(valid_bias_pred, valid_protected)
+                adv_loss_fe = -self.correlation_loss(valid_bias_pred_fe, valid_protected)
 
-        # Normalize the losses
-        eps = 1e-6
-        norm_ce_loss = ce_loss / (self.running_ce_avg + eps)
-        norm_fairness_loss = fairness_loss / (self.running_fairness_avg + eps)
+        # Update running averages
+        self.running_ce_avg = self.running_decay * self.running_ce_avg + (1 - self.running_decay) * ce_loss.detach()
+        self.running_adv_avg = self.running_decay * self.running_adv_avg + (1 - self.running_decay) * adv_loss.detach()
 
-        # Combine the scaled losses
-        total_loss = self.fairness_lambda * (norm_fairness_loss + 0.5 * norm_ce_loss)
+        # Normalize losses
+        norm_ce_loss = ce_loss / (self.running_ce_avg + self.eps)
+        norm_adv_loss = adv_loss_fe / (self.running_adv_avg + self.eps)
+
+        # Combine losses
+        total_loss = norm_ce_loss + norm_adv_loss
+
         return total_loss

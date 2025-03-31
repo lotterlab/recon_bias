@@ -20,7 +20,7 @@ class Trainer:
         save_interval=1,
         early_stopping_patience=None,
         classifier_models=None,
-        fairness_lambda=1
+        ema_alpha=0.9,  # Exponential moving average decay factor
     ):
         """
         Trainer class for training and validating a model with early stopping.
@@ -37,6 +37,8 @@ class Trainer:
             output_name (str, optional): Base name for the saved model files. Defaults to "model".
             save_interval (int, optional): Interval (in epochs) to save model checkpoints. Defaults to 1.
             early_stopping_patience (int, optional): Number of epochs with no improvement after which training will be stopped. If None, early stopping is disabled.
+            classifier_models (list, optional): List of classifier models used for the fairness loss.
+            ema_alpha (float, optional): Decay factor for exponential moving average of loss magnitudes. Defaults to 0.9.
         """
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -49,6 +51,7 @@ class Trainer:
         self.output_name = output_name
         self.save_interval = save_interval
         self.early_stopping_patience = early_stopping_patience
+        self.ema_alpha = ema_alpha
 
         # Initialize TensorBoard writer
         self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -65,7 +68,12 @@ class Trainer:
         self.epochs_without_improvement = 0
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
-        self.fairness_loss = FairnessLoss(classifier_models, fairness_lambda)
+        
+        self.fairness_loss = FairnessLoss(classifier_models, device=self.device)
+        
+        # Initialize exponential moving averages for loss normalization
+        self.criterion_ema = None
+        self.fairness_ema = None
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):
@@ -136,9 +144,25 @@ class Trainer:
             self.optimizer.zero_grad()
 
             outputs = self.model(x)
-            loss = self.model.criterion(outputs, y)
-            fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
-            loss += fairness_loss
+            criterion_loss = self.model.criterion(outputs, y)
+            fairness_component = self.fairness_loss(outputs, labels, protected_attrs)
+            
+            # Update exponential moving averages for loss normalization
+            if self.criterion_ema is None:
+                self.criterion_ema = criterion_loss.item()
+                self.fairness_ema = fairness_component.item()
+            else:
+                self.criterion_ema = self.ema_alpha * self.criterion_ema + (1 - self.ema_alpha) * criterion_loss.item()
+                self.fairness_ema = self.ema_alpha * self.fairness_ema + (1 - self.ema_alpha) * fairness_component.item()
+            
+            # Normalize the losses to have similar magnitudes
+            if self.criterion_ema > 0 and self.fairness_ema > 0:
+                normalized_fairness = fairness_component * (self.criterion_ema / self.fairness_ema)
+            else:
+                normalized_fairness = fairness_component
+                
+            # Combined loss with normalized components
+            loss = criterion_loss + normalized_fairness
 
             loss.backward()
 
@@ -154,6 +178,8 @@ class Trainer:
                 {
                     "Loss": running_loss / total,
                     f"{self.model.performance_metric_name}": running_metrics / total,
+                    "Criterion EMA": self.criterion_ema,
+                    "Fairness EMA": self.fairness_ema,
                 }
             )
         epoch_loss = running_loss / total
@@ -180,12 +206,20 @@ class Trainer:
                 labels = labels.to(self.device)
 
                 outputs = self.model(x)
-                loss = self.model.criterion(outputs, y)
-                l1_loss = loss.item()
+                criterion_loss = self.model.criterion(outputs, y)
+                l1_loss = criterion_loss.item()
                 running_l1_loss += l1_loss
-                fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
-                loss += fairness_loss
-                running_fairness_loss += fairness_loss.item()
+                
+                fairness_component = self.fairness_loss(outputs, labels, protected_attrs)
+                running_fairness_loss += fairness_component.item()
+                
+                # Use the same normalization as in training
+                if self.criterion_ema > 0 and self.fairness_ema > 0:
+                    normalized_fairness = fairness_component * (self.criterion_ema / self.fairness_ema)
+                else:
+                    normalized_fairness = fairness_component
+                
+                loss = criterion_loss + normalized_fairness
 
                 running_loss += loss.item()
                 performance_metric, n = self.model.epoch_performance_metric(
@@ -198,7 +232,7 @@ class Trainer:
                 val_bar.set_postfix(
                     {
                         "Val Loss": running_loss / total,
-                        "Val Fairness Loss": fairness_loss.item(),
+                        "Val Fairness Loss": fairness_component.item(),
                         "Val L1 Loss": l1_loss,
                         f"Val {self.model.performance_metric_name}": running_metrics
                         / total,
@@ -209,6 +243,13 @@ class Trainer:
         epoch_l1_loss = running_l1_loss / total
         epoch_loss = running_loss / total
         epoch_metric = running_metrics / total
+
+        # Log the normalization factors
+        self.writer.add_scalar("Loss/criterion_ema", self.criterion_ema, epoch)
+        self.writer.add_scalar("Loss/fairness_ema", self.fairness_ema, epoch)
+        self.writer.add_scalar("Loss/normalization_ratio", 
+                              self.criterion_ema / self.fairness_ema if self.fairness_ema > 0 else 1.0, 
+                              epoch)
 
         return epoch_loss, epoch_metric, epoch_fairness_loss, epoch_l1_loss
 

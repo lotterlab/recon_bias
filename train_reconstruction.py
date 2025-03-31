@@ -57,7 +57,8 @@ def load_classifier_models(config, device):
             first_output = task_models["TGradeBCEClassifier"](x)
             second_output = task_models["TTypeBCEClassifier"](x)
             return torch.cat((first_output, second_output), dim=1)
-        return apply_task_models
+        #return apply_task_models
+        return task_models["TGradeBCEClassifier"]
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -133,7 +134,7 @@ def main():
     )
 
     # Device configuration
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()
@@ -172,7 +173,6 @@ def main():
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
         classifier_models=classifier_models,
-        fairness_lambda=config["fairness_lambda"],
     )
 
     # Start training
