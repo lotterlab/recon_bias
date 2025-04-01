@@ -74,13 +74,20 @@ class UcsfDataset(Dataset):
         if self.upper_slice is not None:
             df = df.filter(pl.col("slice_id") <= self.upper_slice)
 
+        # Filter for validation set first
+        df = df.filter(pl.col("split") == "val")
+        
+        # For training, use first 90% of validation set
         if self.train:
-            df = df.filter(pl.col("split") == "val")
+            total_samples = len(df)
+            train_size = int(0.9 * total_samples)
+            df = df.slice(0, train_size)
+        # For validation, use last 10% of validation set
         else:
-            df = df.filter(pl.col("split") == "train")
-            # select 10000 samples
-            df = df.sample(n=10000, seed=self.seed)
-            
+            total_samples = len(df)
+            train_size = int(0.9 * total_samples)
+            df = df.slice(train_size, total_samples)
+        
         # Sample if number_of_samples is specified
         if self.number_of_samples is not None and self.number_of_samples > 0:
             df = df.sample(n=self.number_of_samples, seed=self.seed)
@@ -170,10 +177,10 @@ class UcsfDataset(Dataset):
         age = float(row["age_at_mri"] <= 58)
 
         grade = float(0 if int(row["who_cns_grade"]) <= 3 else 1)
-        type = float(1 if row["final_diagnosis"] == "Glioblastoma, IDH-wildtype" else 0)
+        ttype = float(1 if row["final_diagnosis"] == "Glioblastoma, IDH-wildtype" else 0)
         
         # Return in CycleGAN format but using your file paths
-        return undersampled_tensor, slice_tensor, torch.tensor([sex, age]), torch.tensor([grade, type])
+        return undersampled_tensor, slice_tensor, torch.tensor([sex, age]), torch.tensor([grade, ttype])
 
     def __len__(self):
         """Return the total number of images in the dataset."""
