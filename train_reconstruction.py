@@ -25,7 +25,7 @@ from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
 from fairness.classification_model import TGradeBCEClassifier, TTypeBCEClassifier
 from fairness.resnet_classification_network import ResNetClassifierNetwork
-
+from torch.utils.data import WeightedRandomSampler
 
 def load_classifier_models(config, device):
     if config["dataset"] == "chex":
@@ -78,7 +78,7 @@ def main():
     output_dir = config["output_dir"]
     output_name = config["output_name"]
     num_epochs = config["num_epochs"]
-    learning_rate = config["learning_rate"]
+    learning_rate = config["learning_rate"] * 0.01
     batch_size = config["batch_size"]
     model_path = config.get("model_path", None)
     save_interval = config.get("save_interval", 1)
@@ -104,6 +104,7 @@ def main():
         )
         val_dataset = ChexDataset(
             config=config,
+            train=False,
         )
     elif config["dataset"] == "ucsf":
         train_dataset = UcsfDataset(
@@ -111,11 +112,19 @@ def main():
         )
         val_dataset = UcsfDataset(
             config=config,
+            train=False,
         )
 
-    val_sampler = None
-    train_sampler = None
-    shuffle = True
+    print("Before compute_sample_weights")
+
+    val_weights = val_dataset.compute_sample_weights()
+    val_sampler = WeightedRandomSampler(val_weights, len(val_weights), replacement=True)
+
+    train_weights = train_dataset.compute_sample_weights()
+    train_sampler = WeightedRandomSampler(train_weights, len(train_weights), replacement=True)
+    shuffle = False
+
+    print("After compute_sample_weights")
 
     train_loader = DataLoader(
         train_dataset,
