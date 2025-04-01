@@ -181,7 +181,6 @@ def main():
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
         classifier_models=classifier_models,
-        fairness_lambda=config["fairness_lambda"],
     )
 
     # Start training
