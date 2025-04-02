@@ -35,6 +35,8 @@ class Trainer:
             output_name (str, optional): Base name for the saved model files. Defaults to "model".
             save_interval (int, optional): Interval (in epochs) to save model checkpoints. Defaults to 1.
             early_stopping_patience (int, optional): Number of epochs with no improvement after which training will be stopped. If None, early stopping is disabled.
+            classifier_models (list, optional): List of classifier models used for the fairness loss.
+            ema_alpha (float, optional): Decay factor for exponential moving average of loss magnitudes. Defaults to 0.9.
         """
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -47,6 +49,7 @@ class Trainer:
         self.output_name = output_name
         self.save_interval = save_interval
         self.early_stopping_patience = early_stopping_patience
+        self.ema_alpha = ema_alpha
 
         # Initialize TensorBoard writer
         self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -149,6 +152,8 @@ class Trainer:
                 {
                     "Loss": running_loss / total,
                     f"{self.model.performance_metric_name}": running_metrics / total,
+                    "Criterion EMA": self.criterion_ema,
+                    "Fairness EMA": self.fairness_ema,
                 }
             )
         epoch_loss = running_loss / total
@@ -174,10 +179,9 @@ class Trainer:
                 labels = labels.to(self.device)
 
                 outputs = self.model(x)
-                loss = self.model.criterion(outputs, y)
-                l1_loss = loss.item()
+                criterion_loss = self.model.criterion(outputs, y)
+                l1_loss = criterion_loss.item()
                 running_l1_loss += l1_loss
-
 
                 running_loss += loss.item()
                 performance_metric, n = self.model.epoch_performance_metric(

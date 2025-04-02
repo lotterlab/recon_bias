@@ -38,7 +38,7 @@ def load_classifier_models(config, device):
         task_models = {}
         for classifier_config in config["classifiers"]:
             if classifier_config["name"] == "TGradeBCEClassifier":
-                classifier = TGradeBCEClassifier()
+                continue
             elif classifier_config["name"] == "TTypeBCEClassifier":
                 classifier = TTypeBCEClassifier()
             classifier = classifier.to(device)
@@ -57,7 +57,8 @@ def load_classifier_models(config, device):
             first_output = task_models["TGradeBCEClassifier"](x)
             second_output = task_models["TTypeBCEClassifier"](x)
             return torch.cat((first_output, second_output), dim=1)
-        return apply_task_models
+        #return apply_task_models
+        return task_models["TTypeBCEClassifier"].network
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -100,18 +101,18 @@ def main():
     if config["dataset"] == "chex":
     # Datasets and DataLoaders
         train_dataset = ChexDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = ChexDataset(
-            config=config,
+            opt=config,
             train=False,
         )
     elif config["dataset"] == "ucsf":
         train_dataset = UcsfDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = UcsfDataset(
-            config=config,
+            opt=config,
             train=False,
         )
 
@@ -142,7 +143,7 @@ def main():
     )
 
     # Device configuration
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()
