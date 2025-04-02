@@ -101,17 +101,17 @@ def main():
     if config["dataset"] == "chex":
     # Datasets and DataLoaders
         train_dataset = ChexDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = ChexDataset(
-            config=config,
+            opt=config,
         )
     elif config["dataset"] == "ucsf":
         train_dataset = UcsfDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = UcsfDataset(
-            config=config,
+            opt=config,
         )
 
     val_sampler = None
