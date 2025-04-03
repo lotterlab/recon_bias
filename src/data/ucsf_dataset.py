@@ -25,7 +25,7 @@ def min_max_slice_normalization(scan: torch.Tensor) -> torch.Tensor:
 class UcsfDataset(Dataset):
     """Dataset for MRI reconstruction."""
 
-    def __init__(self, opt):
+    def __init__(self, opt, train=True):
         """Initialize this dataset class.
 
         Parameters:
@@ -40,7 +40,7 @@ class UcsfDataset(Dataset):
         self.pathology = opt.get("pathology", [])
         self.lower_slice = opt.get("lower_slice", 60)
         self.upper_slice = opt.get("upper_slice", 130)
-        self.split = "test"
+        self.train = train
         self.num_rays = opt.get("num_rays", 140)
         print(f"num_rays: {self.num_rays}")
 

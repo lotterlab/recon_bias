@@ -36,7 +36,6 @@ class Trainer:
             save_interval (int, optional): Interval (in epochs) to save model checkpoints. Defaults to 1.
             early_stopping_patience (int, optional): Number of epochs with no improvement after which training will be stopped. If None, early stopping is disabled.
             classifier_models (list, optional): List of classifier models used for the fairness loss.
-            ema_alpha (float, optional): Decay factor for exponential moving average of loss magnitudes. Defaults to 0.9.
         """
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -49,7 +48,6 @@ class Trainer:
         self.output_name = output_name
         self.save_interval = save_interval
         self.early_stopping_patience = early_stopping_patience
-        self.ema_alpha = ema_alpha
 
         # Initialize TensorBoard writer
         self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -73,11 +71,11 @@ class Trainer:
             train_loss, train_metric = self.train_epoch(epoch)
 
             # Validation phase
-            val_loss, val_metric, val_l1_loss = self.validate_epoch(epoch)
+            val_loss, val_metric = self.validate_epoch(epoch)
 
             # Log metrics
             self.writer.add_scalars(
-                "Loss", {"Train": train_loss, "Validation": val_loss, "Val L1 Loss": val_l1_loss}, epoch
+                "Loss", {"Train": train_loss, "Validation": val_loss}, epoch
             )
             self.writer.add_scalars(
                 f"{self.model.performance_metric_name}",
@@ -152,8 +150,6 @@ class Trainer:
                 {
                     "Loss": running_loss / total,
                     f"{self.model.performance_metric_name}": running_metrics / total,
-                    "Criterion EMA": self.criterion_ema,
-                    "Fairness EMA": self.fairness_ema,
                 }
             )
         epoch_loss = running_loss / total
@@ -165,7 +161,6 @@ class Trainer:
         self.model.eval()
         running_loss = 0.0
         running_metrics = 0
-        running_l1_loss = 0.0
         total = 0
 
         val_bar = tqdm(
@@ -180,10 +175,9 @@ class Trainer:
 
                 outputs = self.model(x)
                 criterion_loss = self.model.criterion(outputs, y)
-                l1_loss = criterion_loss.item()
-                running_l1_loss += l1_loss
+                loss = criterion_loss.item()
 
-                running_loss += loss.item()
+                running_loss += loss
                 performance_metric, n = self.model.epoch_performance_metric(
                     outputs, y
                 )
@@ -194,17 +188,15 @@ class Trainer:
                 val_bar.set_postfix(
                     {
                         "Val Loss": running_loss / total,
-                        "Val L1 Loss": l1_loss,
                         f"Val {self.model.performance_metric_name}": running_metrics
                         / total,
                     }
                 )
 
-        epoch_l1_loss = running_l1_loss / total
         epoch_loss = running_loss / total
         epoch_metric = running_metrics / total
 
-        return epoch_loss, epoch_metric, epoch_l1_loss
+        return epoch_loss, epoch_metric
 
     def save_snapshot(self, epoch):
         """
