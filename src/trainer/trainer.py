@@ -66,6 +66,7 @@ class Trainer:
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
         self.fairness_loss = FairnessLoss(classifier_models, fairness_lambda)
+        self.fairness_lambda = fairness_lambda
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):
@@ -138,7 +139,7 @@ class Trainer:
             outputs = self.model(x)
             loss = self.model.criterion(outputs, y)
             fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
-            loss += fairness_loss
+            loss += fairness_loss * self.fairness_lambda
 
             loss.backward()
 
@@ -184,7 +185,7 @@ class Trainer:
                 l1_loss = loss.item()
                 running_l1_loss += l1_loss
                 fairness_loss = self.fairness_loss(outputs, labels, protected_attrs)
-                loss += fairness_loss
+                loss += fairness_loss * self.fairness_lambda
                 running_fairness_loss += fairness_loss.item()
 
                 running_loss += loss.item()

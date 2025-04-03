@@ -100,17 +100,19 @@ def main():
     if config["dataset"] == "chex":
     # Datasets and DataLoaders
         train_dataset = ChexDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = ChexDataset(
-            config=config,
+            opt=config,
+            train=False,
         )
     elif config["dataset"] == "ucsf":
         train_dataset = UcsfDataset(
-            config=config,
+            opt=config,
         )
         val_dataset = UcsfDataset(
-            config=config,
+            opt=config,
+            train=False,
         )
 
     val_sampler = None
@@ -133,7 +135,7 @@ def main():
     )
 
     # Device configuration
-    device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()

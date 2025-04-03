@@ -1,0 +1,30 @@
+output_dir: './output'
+output_name: 'unet-fairness-ucsf-08-eodd-lambda-<lambda>'
+save_interval: 5
+dataset: 'ucsf'
+
+fairness_lambda: <lambda>
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 32
+early_stopping_patience: 5
+
+dataroot: /lotterlab/users/matteo/data/UCSF-PDGM
+sampling_mask: radial
+seed: 31415
+type: FLAIR
+pathology: []
+lower_slice: 60
+upper_slice: 130
+num_rays: 60
+
+network_type: 'UNet'
+model_path: /lotterlab/users/matteo/models/Noise/UCSF/Unet/unet-8_20250106_102815/checkpoints/unet-8_20250106_102815_epoch_11_best.pth
+seed: 31415
+
+classifiers: 
+  - name: TGradeBCEClassifier
+    path: /lotterlab/users/matteo/models/tgrade/checkpoints/tgrade_test_20240925_113550_epoch_1_best.pth
+  - name: TTypeBCEClassifier
+    path: /lotterlab/users/matteo/models/ttype/checkpoints/ttype_test_20240925_113544_epoch_1_best.pth
