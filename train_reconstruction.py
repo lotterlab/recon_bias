@@ -105,6 +105,7 @@ def main():
         )
         val_dataset = ChexDataset(
             opt=config,
+            train=False,
         )
     elif config["dataset"] == "ucsf":
         train_dataset = UcsfDataset(
@@ -112,6 +113,7 @@ def main():
         )
         val_dataset = UcsfDataset(
             opt=config,
+            train=False,
         )
 
     val_sampler = None
@@ -134,7 +136,7 @@ def main():
     )
 
     # Device configuration
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
     # Classifier
     model = ReconstructionModel()
@@ -173,6 +175,7 @@ def main():
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
         classifier_models=classifier_models,
+        fairness_lambda=config["fairness_lambda"],
     )
 
     # Start training

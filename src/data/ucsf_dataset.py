@@ -25,7 +25,7 @@ def min_max_slice_normalization(scan: torch.Tensor) -> torch.Tensor:
 class UcsfDataset(Dataset):
     """Dataset for MRI reconstruction."""
 
-    def __init__(self, opt):
+    def __init__(self, opt, train=True):
         """Initialize this dataset class.
 
         Parameters:
@@ -40,7 +40,7 @@ class UcsfDataset(Dataset):
         self.pathology = opt.get("pathology", [])
         self.lower_slice = opt.get("lower_slice", 60)
         self.upper_slice = opt.get("upper_slice", 130)
-        self.split = "test"
+        self.train = train
         self.num_rays = opt.get("num_rays", 140)
         print(f"num_rays: {self.num_rays}")
 
@@ -75,9 +75,20 @@ class UcsfDataset(Dataset):
         if self.upper_slice is not None:
             df = df.filter(pl.col("slice_id") <= self.upper_slice)
 
-        # Filter by split
-        df = df.filter(pl.col("split") == self.split)
-
+        # Filter for validation set first
+        df = df.filter(pl.col("split") == "val")
+        
+        # For training, use first 90% of validation set
+        if self.train:
+            total_samples = len(df)
+            train_size = int(0.9 * total_samples)
+            df = df.slice(0, train_size)
+        # For validation, use last 10% of validation set
+        else:
+            total_samples = len(df)
+            train_size = int(0.9 * total_samples)
+            df = df.slice(train_size, total_samples)
+            
         # Sample if number_of_samples is specified
         if self.number_of_samples is not None and self.number_of_samples > 0:
             df = df.sample(n=self.number_of_samples, seed=self.seed)
@@ -145,6 +156,8 @@ class UcsfDataset(Dataset):
 
     def __getitem__(self, index):
         """Return a data point and its metadata information."""
+        # Convert index to integer to prevent TypeError
+        index = int(index)
         row = self.metadata.row(index, named=True)
 
         # Load the original image
@@ -182,27 +195,20 @@ class UcsfDataset(Dataset):
         return len(self.metadata)
 
     def compute_sample_weights(self):
-        """
-        Computes weights for each sample in the dataset based on the frequency 
-        of the combination of sensitive attributes (sex, age, race).
-        
-        Args:
-            dataset (Dataset): An instance of ChexDataset.
+
+            df = self.metadata.clone()  # or dataset.metadata if you don't mind modifying it
             
-        Returns:
-            List[float]: A list of weights for each sample.
-        """
-        group_counts = {}
-        group_keys = []
-
-        # Iterate over the dataset to record each sample's sensitive attribute group
-        for idx in range(self.__len__()):
-            _, _, protected_attrs, _ = self[idx]
-            # Convert tensor to tuple to use as dict key
-            group = tuple(protected_attrs.tolist())
-            group_keys.append(group)
-            group_counts[group] = group_counts.get(group, 0) + 1
-
-        # Assign weight = 1 / (group frequency)
-        weights = [1.0 / group_counts[group] for group in group_keys]
-        return weights
+            # Define the sensitive columns. For example, here we use 'sex' and 'age_at_mri'
+            sensitive_cols = ['sex', 'age_at_mri']
+            
+            # Compute group counts using Polars
+            group_counts = df.group_by(sensitive_cols).agg(pl.count()).rename({'count': 'group_count'})
+            
+            # Join the group counts back to the original dataframe
+            df = df.join(group_counts, on=sensitive_cols, how='left')
+            
+            # Compute the weight as the inverse of the group_count
+            weights = 1.0 / df['group_count']
+            
+            # Return as a list
+            return weights.to_list()

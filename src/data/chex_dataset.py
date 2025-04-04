@@ -20,14 +20,14 @@ def min_max_slice_normalization(scan: torch.Tensor) -> torch.Tensor:
 
 class ChexDataset(Dataset):
 
-    def __init__(self, config, train=True):
+    def __init__(self, opt, train=True):
         super().__init__()
-        self.data_root_A = pathlib.Path(config["dataroot_A"])
-        self.data_root_B = pathlib.Path(config["dataroot_B"])
-        self.csv_path_A = pathlib.Path(config["csv_path_A"])
-        self.csv_path_B = pathlib.Path(config["csv_path_B"])
-        self.number_of_samples = config["number_of_samples"] if "number_of_samples" in config else None
-        self.seed = config["seed"] if "seed" in config else 31415
+        self.data_root_A = pathlib.Path(opt["dataroot_A"])
+        self.data_root_B = pathlib.Path(opt["dataroot_B"])
+        self.csv_path_A = pathlib.Path(opt["csv_path_A"])
+        self.csv_path_B = pathlib.Path(opt["csv_path_B"])
+        self.number_of_samples = opt["number_of_samples"] if "number_of_samples" in opt else None
+        self.seed = opt["seed"] if "seed" in opt else 31415
         self.train = train
         self.transform = transforms.Compose(
             [

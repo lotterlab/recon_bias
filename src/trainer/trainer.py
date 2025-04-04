@@ -20,7 +20,7 @@ class Trainer:
         save_interval=1,
         early_stopping_patience=None,
         classifier_models=None,
-        ema_alpha=0.9,  # Exponential moving average decay factor
+        fairness_lambda=1.0,
     ):
         """
         Trainer class for training and validating a model with early stopping.
@@ -51,7 +51,7 @@ class Trainer:
         self.output_name = output_name
         self.save_interval = save_interval
         self.early_stopping_patience = early_stopping_patience
-        self.ema_alpha = ema_alpha
+        self.ema_alpha = 0.96
 
         # Initialize TensorBoard writer
         self.writer = SummaryWriter(log_dir=self.log_dir)
@@ -74,6 +74,7 @@ class Trainer:
         # Initialize exponential moving averages for loss normalization
         self.criterion_ema = None
         self.fairness_ema = None
+        self.fairness_lambda = fairness_lambda
 
     def train(self):
         for epoch in range(1, self.num_epochs + 1):
@@ -162,7 +163,7 @@ class Trainer:
                 normalized_fairness = fairness_component
                 
             # Combined loss with normalized components
-            loss = criterion_loss + normalized_fairness
+            loss = criterion_loss + normalized_fairness * self.fairness_lambda
 
             loss.backward()
 
@@ -219,7 +220,7 @@ class Trainer:
                 else:
                     normalized_fairness = fairness_component
                 
-                loss = criterion_loss + normalized_fairness
+                loss = criterion_loss + normalized_fairness * self.fairness_lambda
 
                 running_loss += loss.item()
                 performance_metric, n = self.model.epoch_performance_metric(
