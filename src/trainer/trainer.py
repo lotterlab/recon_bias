@@ -69,7 +69,7 @@ class Trainer:
         self.best_model_state = None  # To store the best model's state_dict
         self.best_epoch = None  # To store the epoch number of the best model
         
-        self.fairness_loss = FairnessLoss(classifier_models, device=self.device)
+        self.fairness_loss = FairnessLoss(classifier_models)
         
         # Initialize exponential moving averages for loss normalization
         self.criterion_ema = None

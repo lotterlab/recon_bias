@@ -1,5 +1,5 @@
 output_dir: './output'
-output_name: 'unet-fairness-chex-10000-adv-lambda-<lambda-name>'
+output_name: 'unet-fairness-chex-10000-eodd-lambda-<lambda-name>'
 save_interval: 5
 dataset: 'chex'
 
