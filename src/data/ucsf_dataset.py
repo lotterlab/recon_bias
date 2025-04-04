@@ -188,7 +188,7 @@ class UcsfDataset(Dataset):
         ttype = float(1 if row["final_diagnosis"] == "Glioblastoma, IDH-wildtype" else 0)
         
         # Return in CycleGAN format but using your file paths
-        return undersampled_tensor, slice_tensor, torch.tensor([sex, age]), torch.tensor([ttype])
+        return undersampled_tensor, slice_tensor, torch.tensor([sex, age]), torch.tensor([grade,ttype])
 
     def __len__(self):
         """Return the total number of images in the dataset."""

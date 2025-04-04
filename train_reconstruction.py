@@ -38,7 +38,7 @@ def load_classifier_models(config, device):
         task_models = {}
         for classifier_config in config["classifiers"]:
             if classifier_config["name"] == "TGradeBCEClassifier":
-                continue
+                classifier = TGradeBCEClassifier()
             elif classifier_config["name"] == "TTypeBCEClassifier":
                 classifier = TTypeBCEClassifier()
             classifier = classifier.to(device)
@@ -57,8 +57,7 @@ def load_classifier_models(config, device):
             first_output = task_models["TGradeBCEClassifier"](x)
             second_output = task_models["TTypeBCEClassifier"](x)
             return torch.cat((first_output, second_output), dim=1)
-        #return apply_task_models
-        return task_models["TTypeBCEClassifier"].network
+        return apply_task_models
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
