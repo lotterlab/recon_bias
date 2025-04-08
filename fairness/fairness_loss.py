@@ -14,7 +14,7 @@ class BiasPredictor(nn.Module):
         return x.squeeze(-1)
 
 class FairnessLoss(nn.Module):
-    def __init__(self, classifier, momentum=0.1, device=None):
+    def __init__(self, classifier, momentum=0.1, device=None, learning_rate=1e-4):
         super(FairnessLoss, self).__init__()
         self.classifier = classifier
         self.momentum = momentum
@@ -27,6 +27,10 @@ class FairnessLoss(nn.Module):
         
         # Initialize bias predictor to None - we'll create it with the correct dimensions on first forward pass
         self.bias_predictor = None
+        
+        # Add optimizer - will be initialized when bias_predictor is created
+        self.optimizer = None
+        self.learning_rate = learning_rate
 
         # Initialize running averages for normalization
         self.register_buffer("running_ce_avg", torch.tensor(1.0))
@@ -58,12 +62,13 @@ class FairnessLoss(nn.Module):
         if features.dim() > 2:
             features = features.reshape(features.size(0), -1)
         
-        # Initialize the bias predictor with the correct feature dimension if not already created
+        # Initialize bias predictor and its optimizer if not already created
         if self.bias_predictor is None:
             feature_dim = features.size(1)
             self.bias_predictor = BiasPredictor(feature_dim)
             if self.device is not None:
                 self.bias_predictor.to(self.device)
+            self.optimizer = torch.optim.Adam(self.bias_predictor.parameters(), lr=self.learning_rate)
             print(f"Initialized BiasPredictor with input dimension: {feature_dim}")
 
         # Classification loss
@@ -122,9 +127,14 @@ class FairnessLoss(nn.Module):
 
         # Normalize losses
         norm_ce_loss = ce_loss / (self.running_ce_avg + self.eps)
-        norm_adv_loss = adv_loss_fe / (self.running_adv_avg + self.eps)
+        norm_adv_loss_fe = adv_loss_fe / (self.running_adv_avg + self.eps)
+        norm_adv_loss = adv_loss / (self.running_adv_avg + self.eps)
+        
+        # Update bias predictor
+        if protected_attrs is not None and protected_attrs.size(0) > 0:
+            self.optimizer.zero_grad()
+            norm_adv_loss.backward(retain_graph=True)  # Train bias predictor to detect bias
+            self.optimizer.step()
 
-        # Combine losses
-        total_loss = norm_ce_loss + norm_adv_loss
-
-        return total_loss
+        # Return loss for reconstruction model
+        return norm_ce_loss + norm_adv_loss_fe  # Only return losses relevant to reconstruction
