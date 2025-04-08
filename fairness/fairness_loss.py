@@ -106,19 +106,21 @@ class FairnessLoss(nn.Module):
                 adv_loss = torch.tensor(0.0, device=features.device)
                 adv_loss_fe = torch.tensor(0.0, device=features.device)
             else:
-                # Apply bias predictor on all features first
-                bias_pred = self.bias_predictor(features.detach())
+                # First compute and update bias predictor using detached features
+                with torch.set_grad_enabled(True):
+                    bias_pred_detached = self.bias_predictor(features.detach())
+                    valid_bias_pred_detached = bias_pred_detached[valid_attr_mask]
+                    valid_protected = protected_attrs[valid_attr_mask, 0]
+                    
+                    adv_loss = self.correlation_loss(valid_bias_pred_detached, valid_protected)
+                
+                    self.optimizer.zero_grad()
+                    adv_loss.backward()  # Use raw adv_loss instead of normalized version
+                    self.optimizer.step()
+                
+                # Then compute adversarial loss for feature extractor with fresh computation
                 bias_pred_fe = self.bias_predictor(features)
-                
-                # Filter out valid entries for loss computation
-                valid_bias_pred = bias_pred[valid_attr_mask]
                 valid_bias_pred_fe = bias_pred_fe[valid_attr_mask]
-                
-                # Use first column for correlation calculation, but only from rows that are fully valid
-                valid_protected = protected_attrs[valid_attr_mask, 0]
-                
-                # Compute adversarial losses
-                adv_loss = self.correlation_loss(valid_bias_pred, valid_protected)
                 adv_loss_fe = -self.correlation_loss(valid_bias_pred_fe, valid_protected)
 
         # Update running averages
@@ -128,13 +130,6 @@ class FairnessLoss(nn.Module):
         # Normalize losses
         norm_ce_loss = ce_loss / (self.running_ce_avg + self.eps)
         norm_adv_loss_fe = adv_loss_fe / (self.running_adv_avg + self.eps)
-        norm_adv_loss = adv_loss / (self.running_adv_avg + self.eps)
-        
-        # Update bias predictor
-        if protected_attrs is not None and protected_attrs.size(0) > 0:
-            self.optimizer.zero_grad()
-            norm_adv_loss.backward(retain_graph=True)  # Train bias predictor to detect bias
-            self.optimizer.step()
 
         # Return loss for reconstruction model
-        return norm_ce_loss + norm_adv_loss_fe  # Only return losses relevant to reconstruction
+        return norm_ce_loss + norm_adv_loss_fe
