@@ -42,14 +42,14 @@ class FairnessLoss(nn.Module):
         # Ensure inputs are valid (no NaN or Inf)
         if torch.isnan(predictions).any() or torch.isnan(targets).any() or \
            torch.isinf(predictions).any() or torch.isinf(targets).any():
-            return torch.tensor(0.0, device=predictions.device)
+            return torch.tensor(0.0, device=predictions.device, requires_grad=True)
             
         vx = predictions - predictions.mean()
         vy = targets - targets.mean()
         
         # Check for zero division
         if torch.sum(vx ** 2).item() < self.eps or torch.sum(vy ** 2).item() < self.eps:
-            return torch.tensor(0.0, device=predictions.device)
+            return torch.tensor(0.0, device=predictions.device, requires_grad=True)
             
         corr = torch.sum(vx * vy) / (torch.sqrt(torch.sum(vx ** 2) * torch.sum(vy ** 2)) + self.eps)
         return corr ** 2
@@ -112,11 +112,17 @@ class FairnessLoss(nn.Module):
                     valid_bias_pred_detached = bias_pred_detached[valid_attr_mask]
                     valid_protected = protected_attrs[valid_attr_mask, 0]
                     
+                    # Make sure bias predictor parameters require gradients
+                    for param in self.bias_predictor.parameters():
+                        param.requires_grad = True
+                        
                     adv_loss = self.correlation_loss(valid_bias_pred_detached, valid_protected)
                 
-                    self.optimizer.zero_grad()
-                    adv_loss.backward()  # Use raw adv_loss instead of normalized version
-                    self.optimizer.step()
+                    # Only do backward if we have a valid loss with gradients
+                    if adv_loss.requires_grad and adv_loss.grad_fn is not None:
+                        self.optimizer.zero_grad()
+                        adv_loss.backward()
+                        self.optimizer.step()
                 
                 # Then compute adversarial loss for feature extractor with fresh computation
                 bias_pred_fe = self.bias_predictor(features)
