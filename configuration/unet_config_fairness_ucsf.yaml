@@ -1,0 +1,30 @@
+output_dir: './output'
+output_name: 'unet-fairness-ucsf'
+save_interval: 5
+dataset: 'ucsf'
+
+fairness_lambda: 1
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 32
+early_stopping_patience: 5
+
+dataroot: ../data/UCSF-PDGM
+sampling_mask: radial
+seed: 31415
+type: FLAIR
+pathology: []
+lower_slice: 60
+upper_slice: 130
+num_rays: 60
+
+network_type: 'UNet'
+model_path: ../models/unet-ucsf.pth
+seed: 31415
+
+classifiers: 
+  - name: TGradeBCEClassifier
+    path: ../models/tgrade/checkpoints/tgrade.pth
+  - name: TTypeBCEClassifier
+    path: ../models/ttype/checkpoints/ttype.pth
