@@ -1,9 +1,9 @@
 output_dir: './output'
-output_name: 'unet-fairness-ucsf-08-l0005-t03-ce05'
+output_name: 'unet-fairness-ucsf-08-t03-normalized'
 save_interval: 5
 dataset: 'ucsf'
 
-fairness_lambda: 0.005
+fairness_lambda: 1
 
 num_epochs: 20
 learning_rate: 0.0001
