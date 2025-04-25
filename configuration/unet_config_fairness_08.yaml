@@ -1,14 +1,14 @@
 output_dir: './output'
-output_name: 'unet-fairness-ucsf-08-adv'
-save_interval: 5
+output_name: 'unet-fairness-ucsf-08-adv-opt'
+save_interval: 1
 dataset: 'ucsf'
 
-fairness_lambda: 0.005
+fairness_lambda: 0.001
 
 num_epochs: 20
 learning_rate: 0.0001
-batch_size: 32
-early_stopping_patience: 5
+batch_size: 64
+early_stopping_patience: 3
 
 dataroot: /lotterlab/users/matteo/data/UCSF-PDGM
 sampling_mask: radial
