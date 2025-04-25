@@ -5,8 +5,6 @@ save_interval: 1
 num_epochs: 100
 learning_rate: 0.001
 batch_size: 8
-#num_train_samples: 16
-#num_val_samples: 8
 
 data_root: '../../data/UCSF-PDGM'
 type: 'FLAIR'
