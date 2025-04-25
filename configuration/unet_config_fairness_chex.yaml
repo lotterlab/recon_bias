@@ -1,0 +1,20 @@
+output_dir: './output'
+output_name: 'unet-fairness-chex'
+save_interval: 5
+dataset: 'chex'
+
+fairness_lambda: 0.005
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 64
+early_stopping_patience: 5
+
+csv_path_A: ../../data/CheXpert/metadata_photon_10000.csv
+csv_path_B: ../../data/CheXpert/metadata.csv
+dataroot_A: ../../data/CheXpert_noise
+dataroot_B: ../../data/CheXpert
+
+network_type: 'UNet'
+model_path: ../../models/unet-chex.pth
+seed: 31415

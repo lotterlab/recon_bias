@@ -18,7 +18,6 @@ class Trainer:
         output_name="model",
         save_interval=1,
         early_stopping_patience=None,
-        classifier_models=None,
     ):
         """
         Trainer class for training and validating a model with early stopping.
@@ -35,7 +34,6 @@ class Trainer:
             output_name (str, optional): Base name for the saved model files. Defaults to "model".
             save_interval (int, optional): Interval (in epochs) to save model checkpoints. Defaults to 1.
             early_stopping_patience (int, optional): Number of epochs with no improvement after which training will be stopped. If None, early stopping is disabled.
-            classifier_models (list, optional): List of classifier models used for the fairness loss.
         """
         self.model = model.to(device)
         self.train_loader = train_loader

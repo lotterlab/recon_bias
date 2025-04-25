@@ -23,42 +23,8 @@ from src.model.reconstruction.ucsf_unet import UcsfUNet
 from src.model.reconstruction.vgg import VGGReconstructionNetwork, get_configs
 from src.trainer.trainer import Trainer
 from src.utils.transformations import min_max_slice_normalization
-from fairness.classification_model import TGradeBCEClassifier, TTypeBCEClassifier
-from fairness.resnet_classification_network import ResNetClassifierNetwork
 from torch.utils.data import WeightedRandomSampler
 
-def load_classifier_models(config, device):
-    if config["dataset"] == "chex":
-        classifier = torch.load(config["classifier_path"], map_location=device)
-        for param in classifier.parameters():
-            param.requires_grad = False
-        classifier.eval()
-        return classifier
-    elif config["dataset"] == "ucsf":
-        task_models = {}
-        for classifier_config in config["classifiers"]:
-            if classifier_config["name"] == "TGradeBCEClassifier":
-                continue
-            elif classifier_config["name"] == "TTypeBCEClassifier":
-                classifier = TTypeBCEClassifier()
-            classifier = classifier.to(device)
-
-            network = ResNetClassifierNetwork(num_classes=classifier.num_classes
-                                                , resnet_version="resnet18")
-            
-            network = network.to(device)
-            classifier.set_network(network)
-            classifier.load_state_dict(torch.load(classifier_config["path"], map_location=device))
-            for param in classifier.parameters():
-                param.requires_grad = False
-            task_models[classifier_config["name"]] = classifier
-
-        def apply_task_models(x):
-            first_output = task_models["TGradeBCEClassifier"](x)
-            second_output = task_models["TTypeBCEClassifier"](x)
-            return torch.cat((first_output, second_output), dim=1)
-        #return apply_task_models
-        return task_models["TTypeBCEClassifier"].network
 
 def main():
     parser = argparse.ArgumentParser(description="Train a reconstruction model.")
@@ -162,9 +128,6 @@ def main():
     # load model
     model.load_state_dict(torch.load(model_path, map_location=device))
 
-    # load classifier
-    classifier_models = load_classifier_models(config, device)
-
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -181,7 +144,6 @@ def main():
         output_name=output_name,
         save_interval=save_interval,
         early_stopping_patience=early_stopping_patience,
-        classifier_models=classifier_models,
     )
 
     # Start training
