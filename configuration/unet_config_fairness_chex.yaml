@@ -1,0 +1,22 @@
+output_dir: './output'
+output_name: 'unet-fairness-chex'
+save_interval: 5
+dataset: 'chex'
+
+fairness_lambda: 1
+
+num_epochs: 20
+learning_rate: 0.0001
+batch_size: 16
+early_stopping_patience: 5
+
+csv_path_A: ../CheXpert_noise/metadata_photon_10000.csv
+csv_path_B: ../CheXpert/metadata.csv
+dataroot_A: ../CheXpert_noise
+dataroot_B: ../CheXpert
+
+network_type: 'UNet'
+model_path: ../models/unet-chex.pth
+seed: 31415
+
+classifier_path: ../code/torchxrayvision/output/class_norm01/chex-densenet-class.pt
