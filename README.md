@@ -8,7 +8,7 @@ This repository contains code to train models for bias evaluation and mitigation
 - `chexpert`: Reconstruction and classification for the UCSF-PDGM dataset
 - `reweighting`: Reconstruction training for a mitigation technique based on reweighting of samples
 - `eodd`: Reconstruction training for a mitigation technique based on an equalized constraint
-- `adv`: Reconstruction training for a mitigation technique based on adversarial traing
+- `adversarial`: Reconstruction training for a mitigation technique based on adversarial traing
 
 ## How to Use
 
